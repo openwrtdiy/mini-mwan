@@ -10,153 +10,42 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Add WAN Interface"
-msgstr "Agregar interfaz WAN"
+msgid "Use this WAN interface for routing"
+msgstr "Usar esta interfaz WAN para enrutamiento"
 
-msgid "Check Interval"
-msgstr "Intervalo de verificación"
-
-msgid "How often to check WAN connectivity (seconds)"
-msgstr "Frecuencia de verificación de conectividad WAN (segundos)"
-
-msgid "Check with: "
-msgstr "Verificar con: "
-
-msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
-msgstr "Configurar interfaces WAN para gestión multi-WAN. Típicamente túneles WireGuard (wg0, wg1, etc)."
-
-msgid "Device"
-msgstr "Dispositivo"
-
-msgid "Duplicate device \"%s\" found. Each interface must use a unique device."
-msgstr "Se encontró un dispositivo duplicado \"%s\". Cada interfaz debe usar un dispositivo único."
-
-msgid "Enable"
-msgstr "Activar"
-
-msgid "Enable Mini Multi-WAN service. At least two WAN interfaces must be configured."
-msgstr "Activar servicio Mini Multi-WAN. Se deben configurar al menos dos interfaces WAN."
-
-msgid "Enable or disable this WAN interface for monitoring"
-msgstr "Activar o desactivar esta interfaz WAN para monitoreo"
-
-msgid "Enabled"
-msgstr "Activado"
-
-msgid "Failover (Primary/Backup)"
-msgstr "Conmutación por error (Principal/Respaldo)"
-
-msgid "Gateway"
-msgstr "Puerta de enlace"
-
-msgid "Global Settings"
-msgstr "Configuración global"
-
-msgid "Interface"
-msgstr "Interfaz"
-
-msgid "Interface Status"
-msgstr "Estado de interfaz"
-
-msgid "IP address to ping for connectivity check"
-msgstr "Dirección IP para verificar conectividad mediante ping"
-
-msgid "Last Check"
-msgstr "Última verificación"
-
-msgid "Latency"
-msgstr "Latencia"
+# LuCI Main Page
+msgid "Mini Multi-WAN"
+msgstr "Mini Multi-WAN"
 
 msgid "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
 msgstr "Gestión ligera de múltiples WAN para túneles VPN WireGuard con soporte de conmutación por error y balanceo de carga."
 
-msgid "Metric"
-msgstr "Métrica"
-
-msgid "Mini Multi-WAN"
-msgstr "Mini Multi-WAN"
-
-msgid "Mini-MWAN Status"
-msgstr "Estado de Mini-MWAN"
-
-msgid "Mode"
-msgstr "Modo"
-
-msgid "Multi-Uplink (Load Balancing)"
-msgstr "Múltiples enlaces (Balanceo de carga)"
-
-msgid "Network interface device (e.g., wg0, wg1, eth1)"
-msgstr "Dispositivo de interfaz de red (ej. wg0, wg1, eth1)"
-
-msgid "No status information available. Make sure the Mini-MWAN service is running."
-msgstr "No hay información de estado disponible. Asegúrese de que el servicio Mini-MWAN esté en ejecución."
-
-msgid "Number of ping attempts"
-msgstr "Número de intentos de ping"
-
-msgid "Operating mode: failover (primary/backup) or multi-uplink (load balancing)"
-msgstr "Modo de operación: conmutación por error (principal/respaldo) o múltiples enlaces (balanceo de carga)"
-
-msgid "Ping Count"
-msgstr "Cantidad de pings"
-
-msgid "Ping Target"
-msgstr "Objetivo de ping"
-
-msgid "Ping target \"%s\" is already used by another interface"
-msgstr "El objetivo de ping \"%s\" ya está siendo utilizado por otra interfaz"
-
-msgid "Ping timeout (seconds)"
-msgstr "Tiempo de espera de ping (segundos)"
-
-msgid "Real-time monitoring of WAN interface status"
-msgstr "Monitoreo en tiempo real del estado de interfaces WAN"
-
-msgid "Route metric (lower = higher priority). Used in failover mode only."
-msgstr "Métrica de ruta (menor = mayor prioridad). Usado solo en modo de conmutación por error."
-
-msgid "seconds"
-msgstr "segundos"
-
-msgid "Service Information"
-msgstr "Información del servicio"
-
-msgid "Since"
-msgstr "Desde"
-
-msgid "Status"
-msgstr "Estado"
-
-msgid "Status updates automatically every 5 seconds"
-msgstr "El estado se actualiza automáticamente cada 5 segundos"
-
-msgid "Timeout"
-msgstr "Tiempo de espera"
-
-msgid "Traffic (RX/TX)"
-msgstr "Tráfico (RX/TX)"
-
-msgid "Traffic distribution weight for multi-uplink mode. Used in multi-uplink mode only."
-msgstr "Peso de distribución de tráfico para modo de múltiples enlaces. Usado solo en modo de múltiples enlaces."
+# LuCI Sections
+msgid "Global Settings"
+msgstr "Configuración global"
 
 msgid "WAN Interfaces"
 msgstr "Interfaces WAN"
 
+msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "Configurar interfaces WAN para gestión multi-WAN. Típicamente túneles WireGuard (wg0, wg1, etc)."
+
+# LuCI Actions
+msgid "Add WAN Interface"
+msgstr "Agregar interfaz WAN"
+
+# LuCI Modals
 msgid "WAN Interface"
 msgstr "Interfaz WAN"
 
-msgid "Weight"
-msgstr "Peso"
+# LuCI Error Messages
+msgid "Duplicate device "%s" found. Each interface must use a unique device."
+msgstr "Se encontró un dispositivo duplicado "%s". Cada interfaz debe usar un dispositivo único."
 
-msgid "Mode:"
-msgstr "Modo:"
+msgid "Ping target "%s" is already used by another interface"
+msgstr "El objetivo de ping "%s" ya está siendo utilizado por otra interfaz"
 
-msgid "Check Interval:"
-msgstr "Intervalo de verificación:"
-
-msgid "Last Update:"
-msgstr "Última actualización:"
-
+# LuCI UI Strings
 msgid "None"
 msgstr "Ninguno"
 
@@ -174,3 +63,123 @@ msgstr "GB"
 
 msgid "TB"
 msgstr "TB"
+
+msgid "seconds"
+msgstr "segundos"
+
+# LuCI Status Page
+msgid "Mini-MWAN Status"
+msgstr "Estado de Mini-MWAN"
+
+msgid "Real-time monitoring of WAN interface status"
+msgstr "Monitoreo en tiempo real del estado de interfaces WAN"
+
+msgid "No status information available. Make sure the Mini-MWAN service is running."
+msgstr "No hay información de estado disponible. Asegúrese de que el servicio Mini-MWAN esté en ejecución."
+
+msgid "Check with: "
+msgstr "Verificar con: "
+
+msgid "Service Information"
+msgstr "Información del servicio"
+
+msgid "Mode:"
+msgstr "Modo:"
+
+msgid "Check Interval:"
+msgstr "Intervalo de verificación:"
+
+msgid "Last Update:"
+msgstr "Última actualización:"
+
+msgid "Interface Status"
+msgstr "Estado de interfaz"
+
+msgid "Interface"
+msgstr "Interfaz"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Since"
+msgstr "Desde"
+
+msgid "Latency"
+msgstr "Latencia"
+
+msgid "Traffic (RX/TX)"
+msgstr "Tráfico (RX/TX)"
+
+msgid "Gateway"
+msgstr "Puerta de enlace"
+
+msgid "Last Check"
+msgstr "Última verificación"
+
+msgid "Status updates automatically every 5 seconds"
+msgstr "El estado se actualiza automáticamente cada 5 segundos"
+
+# Configuration: Global Settings
+msgid "Enable"
+msgstr "Activar"
+
+msgid "Enable Mini Multi-WAN service. At least two WAN interfaces must be configured."
+msgstr "Activar servicio Mini Multi-WAN. Se deben configurar al menos dos interfaces WAN."
+
+msgid "Mode"
+msgstr "Modo"
+
+msgid "Operating mode: failover (primary/backup) or multi-uplink (load balancing)"
+msgstr "Modo de operación: conmutación por error (principal/respaldo) o múltiples enlaces (balanceo de carga)"
+
+msgid "Failover (Primary/Backup)"
+msgstr "Conmutación por error (Principal/Respaldo)"
+
+msgid "Multi-Uplink (Load Balancing)"
+msgstr "Múltiples enlaces (Balanceo de carga)"
+
+msgid "Check Interval"
+msgstr "Intervalo de verificación"
+
+msgid "How often to check WAN connectivity (seconds)"
+msgstr "Frecuencia de verificación de conectividad WAN (segundos)"
+
+# Configuration: WAN Interface
+msgid "Enabled"
+msgstr "Activado"
+
+msgid "Device"
+msgstr "Dispositivo"
+
+msgid "Network interface device (e.g., wg0, wg1, eth1)"
+msgstr "Dispositivo de interfaz de red (ej. wg0, wg1, eth1)"
+
+msgid "Metric"
+msgstr "Métrica"
+
+msgid "Route metric (lower = higher priority). Used in failover mode only."
+msgstr "Métrica de ruta (menor = mayor prioridad). Usado solo en modo de conmutación por error."
+
+msgid "Weight"
+msgstr "Peso"
+
+msgid "Traffic distribution weight for multi-uplink mode. Used in multi-uplink mode only."
+msgstr "Peso de distribución de tráfico para modo de múltiples enlaces. Usado solo en modo de múltiples enlaces."
+
+msgid "Ping Target"
+msgstr "Objetivo de ping"
+
+msgid "IP address to ping for connectivity check"
+msgstr "Dirección IP para verificar conectividad mediante ping"
+
+msgid "Ping Count"
+msgstr "Cantidad de pings"
+
+msgid "Number of ping attempts"
+msgstr "Número de intentos de ping"
+
+msgid "Timeout"
+msgstr "Tiempo de espera"
+
+msgid "Ping timeout (seconds)"
+msgstr "Tiempo de espera de ping (segundos)"
