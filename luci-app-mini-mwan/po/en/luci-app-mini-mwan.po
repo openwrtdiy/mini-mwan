@@ -17,8 +17,8 @@ msgstr "Use this WAN interface for routing"
 msgid "Mini Multi-WAN"
 msgstr "Mini Multi-WAN"
 
-msgid "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
-msgstr "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
+msgid "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
+msgstr "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
 
 # LuCI Sections
 msgid "Global Settings"
@@ -27,8 +27,8 @@ msgstr "Global Settings"
 msgid "WAN Interfaces"
 msgstr "WAN Interfaces"
 
-msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
-msgstr "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgid "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
 
 # LuCI Actions
 msgid "Add WAN Interface"
@@ -89,8 +89,8 @@ msgstr "Mode:"
 msgid "Check Interval:"
 msgstr "Check Interval:"
 
-msgid "Last Update:"
-msgstr "Last Update:"
+msgid "Last status check of WAN interfaces:"
+msgstr "Last status check of WAN interfaces:"
 
 msgid "Interface Status"
 msgstr "Interface Status"

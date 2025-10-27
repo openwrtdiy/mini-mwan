@@ -17,22 +17,22 @@ msgstr "Použít toto WAN rozhraní pro směrování"
 msgid "Mini Multi-WAN"
 msgstr "Mini Multi-WAN"
 
-msgid "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
-msgstr "Lehká správa více WAN pro tunely WireGuard VPN s podporou záložního režimu a vyvážení zátěže."
+msgid "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
+msgstr "Nenáročný správce multi‑WAN pro WireGuard tunely s automatickým přepínáním a vyvažováním zátěže."
 
 # LuCI Sections
 msgid "Global Settings"
 msgstr "Globální nastavení"
 
 msgid "WAN Interfaces"
-msgstr "WAN rozhraní"
+msgstr "Rozhraní WAN"
 
-msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
-msgstr "Nastavení WAN rozhraní pro správu více WAN. Obvykle tunely WireGuard (wg0, wg1, atd.)."
+msgid "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "Konfigurace WAN rozhraní pro správu více WAN kanálů; obvykle tunely WireGuard (wg0, wg1 atd.), případně běžná rozhraní jako eth1 nebo wlan0, ale bez záruky."
 
 # LuCI Actions
 msgid "Add WAN Interface"
-msgstr "Přidat WAN rozhraní"
+msgstr "Přidat rozhraní WAN"
 
 # LuCI Modals
 msgid "WAN Interface"
@@ -65,7 +65,7 @@ msgid "TB"
 msgstr "TB"
 
 msgid "seconds"
-msgstr "sekundy"
+msgstr "vteřin"
 
 # LuCI Status Page
 msgid "Mini-MWAN Status"
@@ -75,7 +75,7 @@ msgid "Real-time monitoring of WAN interface status"
 msgstr "Monitorování stavu WAN rozhraní v reálném čase"
 
 msgid "No status information available. Make sure the Mini-MWAN service is running."
-msgstr "Nejsou k dispozici žádné stavové informace. Ujistěte se, že služba Mini-MWAN běží."
+msgstr "Nejsou k dispozici žádné informace o stavu. Ujistěte se, že služba Mini‑MWAN běží."
 
 msgid "Check with: "
 msgstr "Kontrola pomocí: "
@@ -89,8 +89,8 @@ msgstr "Režim:"
 msgid "Check Interval:"
 msgstr "Interval ověřování:"
 
-msgid "Last Update:"
-msgstr "Poslední aktualizace:"
+msgid "Last status check of WAN interfaces:"
+msgstr "Poslední kontrola stavu WAN rozhraní:"
 
 msgid "Interface Status"
 msgstr "Stav rozhraní"
@@ -117,7 +117,7 @@ msgid "Last Check"
 msgstr "Poslední ověření"
 
 msgid "Status updates automatically every 5 seconds"
-msgstr "Stav se automaticky aktualizuje každých 5 sekund"
+msgstr "Stav se automaticky aktualizuje každých 5 vteřin"
 
 # Configuration: Global Settings
 msgid "Enable"

@@ -13,7 +13,7 @@ return view.extend({
 		var m, s, o;
 
 		m = new form.Map('mini-mwan', _('Mini Multi-WAN'),
-			_('Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support.'));
+			_('Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing.'));
 
 		// Global settings section
 		s = m.section(form.TypedSection, 'settings', _('Global Settings'));
@@ -41,7 +41,7 @@ return view.extend({
 
 		// WAN Interfaces section
 		s = m.section(form.GridSection, 'interface', _('WAN Interfaces'),
-			_('Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc).'));
+			_('WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc).'));
 		s.anonymous = false;
 		s.addremove = true;
 		s.nodescriptions = true;

@@ -147,7 +147,7 @@ return view.extend({
 					E('td', {}, status.check_interval + ' ' + _('seconds'))
 				]),
 				E('tr', {}, [
-					E('td', {}, E('strong', {}, _('Last Update:'))),
+					E('td', {}, E('strong', {}, _('Last status check of WAN interfaces:'))),
 					E('td', {}, this.formatTimestamp(status.timestamp))
 				])
 			])

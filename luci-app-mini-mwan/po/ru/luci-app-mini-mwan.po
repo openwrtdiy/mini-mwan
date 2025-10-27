@@ -17,18 +17,18 @@ msgstr "Использовать данный WAN интерфейс для ма
 msgid "Mini Multi-WAN"
 msgstr "Mini Multi-WAN"
 
-msgid "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
-msgstr "Легковесное управление несколькими WAN для туннелей WireGuard VPN с поддержкой отказоустойчивости и балансировки нагрузки."
+msgid "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
+msgstr "Multi‑WAN менеджер для WireGuard туннелей с Failover и Load-Balancing-ами"
 
 # LuCI Sections
 msgid "Global Settings"
-msgstr "Глобальные настройки"
+msgstr "Настройки"
 
 msgid "WAN Interfaces"
-msgstr "WAN интерфейсы"
+msgstr "WAN-интерфейсы"
 
-msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
-msgstr "Настройка WAN интерфейсов для управления несколькими WAN. Обычно это туннели WireGuard (wg0, wg1 и т.д.)."
+msgid "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "Настройка интерфейсов для управления несколькими WAN. В идеале это должны быть туннели WireGuard (wg0, wg1 и т.д.). С остальными - eth1, wlan0 тоже сойдет, но это на любителя."
 
 # LuCI Actions
 msgid "Add WAN Interface"
@@ -40,10 +40,10 @@ msgstr "WAN интерфейс"
 
 # LuCI Error Messages
 msgid "Duplicate device "%s" found. Each interface must use a unique device."
-msgstr "Обнаружено дублирование устройства "%s". Каждый интерфейс должен использовать уникальное устройство."
+msgstr "Это устройство "%s" уже сконфигурировано. Выберите какое-нибудь другое."
 
 msgid "Ping target "%s" is already used by another interface"
-msgstr "Цель ping "%s" уже используется другим интерфейсом"
+msgstr "Нельзя просто так взять и использовать один и тот же хост "%s" для пинга. Когда он упадёт - накроются все интерфейсы которые на него завязаны. Лучше на каждый интерфейс - свой отдельный хост."
 
 # LuCI UI Strings
 msgid "None"
@@ -72,7 +72,7 @@ msgid "Mini-MWAN Status"
 msgstr "Статус Mini-MWAN"
 
 msgid "Real-time monitoring of WAN interface status"
-msgstr "Мониторинг состояния WAN интерфейсов в реальном времени"
+msgstr "Мониторинг состояния WAN интерфейсов"
 
 msgid "No status information available. Make sure the Mini-MWAN service is running."
 msgstr "Информация о статусе недоступна. Убедитесь, что служба Mini-MWAN запущена."
@@ -89,8 +89,8 @@ msgstr "Режим:"
 msgid "Check Interval:"
 msgstr "Интервал проверки:"
 
-msgid "Last Update:"
-msgstr "Последнее обновление:"
+msgid "Last status check of WAN interfaces:"
+msgstr "Последняя проверка состояния WAN‑интерфейсов:"
 
 msgid "Interface Status"
 msgstr "Состояние интерфейса"
@@ -105,10 +105,10 @@ msgid "Since"
 msgstr "С"
 
 msgid "Latency"
-msgstr "Задержка"
+msgstr "Пинг"
 
 msgid "Traffic (RX/TX)"
-msgstr "Трафик (RX/TX)"
+msgstr "Прошло (RX/TX)"
 
 msgid "Gateway"
 msgstr "Шлюз"
@@ -124,25 +124,25 @@ msgid "Enable"
 msgstr "Включить"
 
 msgid "Enable Mini Multi-WAN service. At least two WAN interfaces must be configured."
-msgstr "Включить службу Mini Multi-WAN. Должны быть настроены как минимум два WAN интерфейса."
+msgstr "Разрешить службе Mini Multi-WAN вмешиваться в маршрутзацию. Должны быть настроены как минимум два WAN интерфейса."
 
 msgid "Mode"
 msgstr "Режим"
 
 msgid "Operating mode: failover (primary/backup) or multi-uplink (load balancing)"
-msgstr "Режим работы: отказоустойчивость (основной/резервный) или несколько каналов (балансировка нагрузки)"
+msgstr "Режим работы: failover (primary/backup) или multi-uplink (load balancing)"
 
 msgid "Failover (Primary/Backup)"
-msgstr "Отказоустойчивость (Основной/Резервный)"
+msgstr "Failover (Primary/Backup)"
 
 msgid "Multi-Uplink (Load Balancing)"
-msgstr "Несколько каналов (Балансировка нагрузки)"
+msgstr "Multi-Uplink (Load Balancing)"
 
 msgid "Check Interval"
-msgstr "Интервал проверки"
+msgstr "Частота проверки"
 
 msgid "How often to check WAN connectivity (seconds)"
-msgstr "Как часто проверять соединение WAN (в секундах)"
+msgstr "Как часто проверять доступность хоста через это соединение WAN (в секундах)"
 
 # Configuration: WAN Interface
 msgid "Enabled"
@@ -158,19 +158,19 @@ msgid "Metric"
 msgstr "Метрика"
 
 msgid "Route metric (lower = higher priority). Used in failover mode only."
-msgstr "Метрика маршрута (меньше = выше приоритет). Используется только в режиме отказоустойчивости."
+msgstr "Метрика маршрута (меньше = выше приоритет). Используется только в режиме failover."
 
 msgid "Weight"
 msgstr "Вес"
 
 msgid "Traffic distribution weight for multi-uplink mode. Used in multi-uplink mode only."
-msgstr "Вес распределения трафика для режима нескольких каналов. Используется только в режиме нескольких каналов."
+msgstr "Вес статистического распределения трафика. Используется только в режиме Load Balancing."
 
 msgid "Ping Target"
 msgstr "Цель ping"
 
 msgid "IP address to ping for connectivity check"
-msgstr "IP-адрес для проверки связи с помощью ping"
+msgstr "IP-адрес для проверки обрывов на интерфейсе с помощью ping"
 
 msgid "Ping Count"
 msgstr "Количество ping-запросов"

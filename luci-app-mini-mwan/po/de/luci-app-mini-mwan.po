@@ -17,8 +17,8 @@ msgstr "Diese WAN-Schnittstelle für Routing verwenden"
 msgid "Mini Multi-WAN"
 msgstr "Mini Multi-WAN"
 
-msgid "Lightweight multi-WAN management for WireGuard VPN tunnels with failover and load balancing support."
-msgstr "Leichtgewichtige Multi-WAN-Verwaltung für WireGuard-VPN-Tunnel mit Failover- und Load-Balancing-Unterstützung."
+msgid "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
+msgstr "Ressourcenschonender Multi‑WAN‑Manager für WireGuard‑Tunnels mit automatischem Failover und Lastverteilung."
 
 # LuCI Sections
 msgid "Global Settings"
@@ -27,8 +27,8 @@ msgstr "Globale Einstellungen"
 msgid "WAN Interfaces"
 msgstr "WAN-Schnittstellen"
 
-msgid "Configure WAN interfaces for multi-WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
-msgstr "WAN-Schnittstellen für Multi-WAN-Verwaltung konfigurieren. Typischerweise WireGuard-Tunnel (wg0, wg1, usw.)."
+msgid "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "Konfiguration der WAN‑Schnittstellen für die Multi‑WAN‑Verwaltung. Typischerweise WireGuard‑Tunnel (wg0, wg1 usw.)"
 
 # LuCI Actions
 msgid "Add WAN Interface"
@@ -40,10 +40,10 @@ msgstr "WAN-Schnittstelle"
 
 # LuCI Error Messages
 msgid "Duplicate device "%s" found. Each interface must use a unique device."
-msgstr "Doppeltes Gerät "%s" gefunden. Jede Schnittstelle muss ein eindeutiges Gerät verwenden."
+msgstr "Doppeltes Gerät \"%s\" gefunden. Jedes Interface muss ein eindeutiges Gerät verwenden."
 
 msgid "Ping target "%s" is already used by another interface"
-msgstr "Ping-Ziel "%s" wird bereits von einer anderen Schnittstelle verwendet"
+msgstr "Ping‑Ziel \"%s\" wird bereits von einer anderen Schnittstelle verwendet"
 
 # LuCI UI Strings
 msgid "None"
@@ -75,7 +75,7 @@ msgid "Real-time monitoring of WAN interface status"
 msgstr "Echtzeitüberwachung des WAN-Schnittstellenstatus"
 
 msgid "No status information available. Make sure the Mini-MWAN service is running."
-msgstr "Keine Statusinformationen verfügbar. Stellen Sie sicher, dass der Mini-MWAN-Dienst läuft."
+msgstr "Keine Statusinformationen verfügbar. Stellen Sie sicher, dass der Dienst Mini‑MWAN läuft."
 
 msgid "Check with: "
 msgstr "Prüfen mit: "
@@ -89,8 +89,8 @@ msgstr "Modus:"
 msgid "Check Interval:"
 msgstr "Prüfintervall:"
 
-msgid "Last Update:"
-msgstr "Letzte Aktualisierung:"
+msgid "Last status check of WAN interfaces:"
+msgstr "Letzte Statusprüfung der WAN‑Schnittstellen:"
 
 msgid "Interface Status"
 msgstr "Schnittstellenstatus"
