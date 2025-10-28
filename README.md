@@ -187,6 +187,7 @@ logread | grep mini-mwan
 
 | Feature | Mini-MWAN | mwan3 |
 |---------|-----------|-------|
+| **IPv6** | ❌ No | ✅ Yes |
 | **Complexity** | ~500 lines of Lua | ~10,000+ lines |
 | **Dependencies** | 4 packages | Many (including iptables, ipset, etc.) |
 | **Firewall Backend** | None (uses kernel routing) | iptables/fw3 required |
@@ -212,6 +213,7 @@ logread | grep mini-mwan
 - Sticky sessions for specific services
 - Advanced traffic rules and policies
 - OpenWrt 23.05 or earlier (where mwan3 is available)
+- IPv6
 
 ## Repository Structure
 
@@ -251,7 +253,7 @@ cd mini-mwan
 make build
 ```
 
-Built packages will be in `./bin/packages/x86_64/base/`:
+Built packages will be in `./bin/packages/x86_64/*/`:
 - `mini-mwan_1.0.0-r1_all.ipk`
 - `luci-app-mini-mwan_1.0.0-r1_all.ipk`
 
@@ -277,24 +279,9 @@ This mode:
 - Tests the exact structure that will be published to feeds
 - Recommended for final testing and building release packages
 
-#### 2. Fast Development (VS Code devcontainer)
-Uses `Makefile.devcontainer` for rapid iteration without i18n overhead:
-
-1. Install "Dev Containers" extension
-2. Open project in VS Code
-3. Click "Reopen in Container"
-4. Edit source files directly (mounted read-write)
-5. Build from integrated terminal: `cd /builder && make package/mini-mwan/compile`
-
-This mode:
-- Uses `Makefile.devcontainer` (no `luci.mk` dependency)
-- Faster builds during development
-- All source files mounted read-write
-- Skips translation compilation for speed
-
 ### Internationalization (i18n)
 
-The LuCI web interface is ready for internationalization via **Weblate**. Translation boilerplate files are included for:
+The LuCI web interface is ready for internationalization via **Weblate**. Translation files, reduced to my limited knowledge of each language, are included for:
 
 - 🇷🇺 Russian (ru)
 - 🇨🇿 Czech (cs)
