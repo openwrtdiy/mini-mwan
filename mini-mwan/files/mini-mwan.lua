@@ -7,7 +7,6 @@ Manages multi-WAN failover and load balancing
 
 local uci = require("uci")
 local nixio = require("nixio")
-local fs = require("nixio.fs")
 local json = require("cjson")
 
 -- Configuration
@@ -166,16 +165,58 @@ local function get_gateway(iface)
 	return nil
 end
 
--- Add/update default route for an interface
-local function set_route(gateway, metric, iface)
-	-- Use 'replace' to handle both creation and update
-	if gateway and gateway ~= "" then
-		-- Regular interface with gateway (e.g., ethernet)
-		auditable_exec(string.format("ip route replace default via %s dev %s metric %d", gateway, iface, metric))
-	else
-		-- Point-to-point interface without gateway (e.g., VPN tunnel)
-		auditable_exec(string.format("ip route replace default dev %s metric %d", iface, metric))
+-- Check if interface should be marked as degraded
+local function check_degradation(iface)
+	-- Reset degradation first
+	iface.degraded = 0
+	iface.degraded_reason = ""
+
+	-- Check 1: Regular interface without gateway (DHCP not complete)
+	if not iface.point_to_point and (not iface.gateway or iface.gateway == "") then
+		iface.degraded = 1
+		iface.degraded_reason = "no_gateway"
+		log(string.format("%s (%s): DEGRADED - Regular interface missing gateway (DHCP incomplete?)",
+		                 iface.name, iface.device or ""))
+		return
 	end
+
+	-- Check 2: IPv6 detection (application not compatible with IPv6)
+	if iface.device and iface.device ~= "" then
+		local cmd = string.format("ip -6 addr show dev %s 2>/dev/null | grep -q 'inet6.*scope global'", iface.device)
+		local handle = io.popen(cmd)
+		if handle then
+			local result = handle:close()
+			-- handle:close() returns true if exit code is 0 (found IPv6)
+			if result then
+				iface.degraded = 1
+				iface.degraded_reason = "ipv6_detected"
+				log(string.format("%s (%s): DEGRADED - IPv6 address detected (not supported)",
+				                 iface.name, iface.device))
+				return
+			end
+		end
+	end
+end
+
+-- Add/update default route for an interface
+local function set_route(iface)
+-- Skip degraded regular interfaces (they shouldn't have routes)
+if iface.degraded == 1 and not iface.point_to_point then
+	log(string.format("Skipping route for degraded interface %s (%s): %s",
+						iface.name, iface.device, iface.degraded_reason))
+	return
+end
+
+-- Use 'replace' to handle both creation and update
+if iface.gateway and iface.gateway ~= "" then
+	-- Regular interface with gateway (e.g., ethernet)
+	auditable_exec(string.format("ip route replace default via %s dev %s metric %d",
+									iface.gateway, iface.device, iface.metric))
+else
+	-- Point-to-point interface without gateway (e.g., VPN tunnel)
+	auditable_exec(string.format("ip route replace default dev %s metric %d",
+									iface.device, iface.metric))
+end
 end
 
 -- Load configuration
@@ -208,15 +249,19 @@ local function load_config()
 			ping_target = section.ping_target,
 			ping_count = tonumber(section.ping_count) or 3,
 			ping_timeout = tonumber(section.ping_timeout) or 2,
+			point_to_point = section.point_to_point == "1",
 			status = saved_state.status or "unknown",
 			status_since = saved_state.status_since,
 			latency = saved_state.latency or 0,
 			gateway = nil,
+			degraded = saved_state.degraded or 0,
+			degraded_reason = saved_state.degraded_reason or "",
 			last_check = saved_state.last_check
 		}
 
 		if iface.device and iface.device ~= "" then
 			iface.gateway = get_gateway(iface.device)
+			check_degradation(iface)
 		end
 
 		table.insert(config.interfaces, iface)
@@ -268,8 +313,10 @@ local function update_interface_status(iface)
 			status = iface.status,
 			status_since = iface.status_since,
 			latency = 0,
-			last_check = iface.last_check
-		}
+			last_check = iface.last_check,
+			degraded = iface.degraded,
+			degraded_reason = iface.degraded_reason,
+			}
 		return
 	end
 
@@ -294,7 +341,9 @@ local function update_interface_status(iface)
 			status = iface.status,
 			status_since = iface.status_since,
 			latency = iface.latency,
-			last_check = iface.last_check
+			last_check = iface.last_check,
+			degraded = iface.degraded,
+			degraded_reason = iface.degraded_reason,
 		}
 		return
 	end
@@ -320,7 +369,9 @@ local function update_interface_status(iface)
 		status = iface.status,
 		status_since = iface.status_since,
 		latency = iface.latency,
-		last_check = iface.last_check
+		last_check = iface.last_check,
+		degraded = iface.degraded,
+		degraded_reason = iface.degraded_reason,
 	}
 
 	log(string.format("%s (%s): %s (latency: %.2fms, ping via %s to %s)",
@@ -338,7 +389,11 @@ local function handle_failover(config)
 	local sorted_ifaces = {}
 	local down_ifaces = {}
 	for _, iface in ipairs(config.interfaces) do
-		if iface.status == "up" then
+		-- Skip degraded non-P2P interfaces entirely
+		if iface.degraded == 1 and not iface.point_to_point then
+			log(string.format("Skipping degraded interface %s (%s): %s",
+							iface.name, iface.device, iface.degraded_reason))
+		elseif iface.status == "up" then
 			table.insert(sorted_ifaces, iface)
 		elseif iface.enabled and iface.device and iface.status ~= "interface_down" then
 			table.insert(down_ifaces, iface)
@@ -351,7 +406,7 @@ local function handle_failover(config)
 		-- Use 'replace' instead of 'add' to handle cases where route already exists
 		-- But we still need to delete first, so that eventually all duplicates get removed
 		if iface.gateway and iface.gateway ~= "" then
-			auditable_exec(string.format("ip route delete default via %s dev %s", iface.gateway, iface
+			auditable_exec(string.format("ip route delete default dev %s", iface.gateway, iface
 			.device))
 			auditable_exec(string.format("ip route replace default via %s dev %s metric 900", iface.gateway, iface
 			.device))
@@ -368,13 +423,13 @@ local function handle_failover(config)
 
 	-- Use the highest priority (lowest metric) interface as primary
 	local primary = sorted_ifaces[1]
-	set_route(primary.gateway, primary.metric, primary.device)
+	set_route(primary)
 	log(string.format("Using %s (%s) as primary with metric %d", primary.name, primary.device, primary.metric))
 
 	-- Set backup routes with their original metrics
 	for i = 2, #sorted_ifaces do
 		local backup = sorted_ifaces[i]
-		set_route(backup.gateway, backup.metric, backup.device)
+		set_route(backup)
 		log(string.format("Setting %s (%s) as backup with metric %d", backup.name, backup.device, backup.metric))
 	end
 end
@@ -390,7 +445,11 @@ local function handle_multiuplink(config)
 	local active_ifaces = {}
 	local down_ifaces = {}
 	for _, iface in ipairs(config.interfaces) do
-		if iface.status == "up" then
+		-- Skip degraded non-P2P interfaces entirely
+		if iface.degraded == 1 and not iface.point_to_point then
+			log(string.format("Skipping degraded interface %s (%s): %s",
+							iface.name, iface.device, iface.degraded_reason))
+		elseif iface.status == "up" then
 			table.insert(active_ifaces, iface)
 		elseif iface.enabled and iface.device and iface.status ~= "interface_down" then
 			table.insert(down_ifaces, iface)
@@ -414,7 +473,10 @@ local function handle_multiuplink(config)
 	end
 
 	-- Remove all existing default routes (except metric 900)
-	auditable_exec("ip route show | grep '^default' | grep -v 'metric 900' | while read route; do ip route del $route 2>/dev/null; done")
+	auditable_exec("ip route show " ..
+					"| grep '^default' " ..
+					"| grep -v 'metric 900' " ..
+					"| while read route; do ip route del $route 2>/dev/null; done")
 
 	-- Build multipath route command
 	-- ip route replace default nexthop via GW1 dev DEV1 weight W1 nexthop dev DEV2 weight W2

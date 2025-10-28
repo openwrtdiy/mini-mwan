@@ -46,6 +46,11 @@ feeds-register:
 shell:
 	docker-compose run --rm openwrt-sdk bash
 
+# Open a shell in the build container
+check:
+	luacheck mini-mwan/files/mini-mwan.lua
+
+
 # Show help
 help:
 	@echo "Mini-MWAN Build System"
