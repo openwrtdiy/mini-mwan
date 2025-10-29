@@ -107,31 +107,22 @@ local function get_interface_stats(device)
 		return "0", "0"
 	end
 
-	local rx_path = string.format("/sys/class/net/%s/statistics/rx_bytes", device)
-	local tx_path = string.format("/sys/class/net/%s/statistics/tx_bytes", device)
-
-	local rx_bytes = "0"
-	local tx_bytes = "0"
-
-	-- Read RX bytes
-	local rx_file = io.open(rx_path, "r")
-	if rx_file then
-		local content = rx_file:read("*l")  -- Read one line, automatically strips newline
-		rx_file:close()
-		if content and content ~= "" then
-			rx_bytes = content
+	-- Helper function to read a single stat file
+	local function read_stat(stat_name)
+		local path = string.format("/sys/class/net/%s/statistics/%s", device, stat_name)
+		local file = io.open(path, "r")
+		if file then
+			local content = file:read("*l") -- Read one line, automatically strips newline
+			file:close()
+			if content and content ~= "" then
+				return content
+			end
 		end
+		return "0"
 	end
 
-	-- Read TX bytes
-	local tx_file = io.open(tx_path, "r")
-	if tx_file then
-		local content = tx_file:read("*l")  -- Read one line, automatically strips newline
-		tx_file:close()
-		if content and content ~= "" then
-			tx_bytes = content
-		end
-	end
+	local rx_bytes = read_stat("rx_bytes")
+	local tx_bytes = read_stat("tx_bytes")
 
 	return rx_bytes, tx_bytes
 end
@@ -378,8 +369,47 @@ local function update_interface_status(iface)
 		iface.name, iface.device, iface.status, latency, iface.device, iface.ping_target))
 end
 
+-- Remove or demote default routes for interfaces not managed by mini-mwan
+local function cleanup_unmanaged_routes(config)
+	-- Build list of managed devices
+	local managed_devices = {}
+	for _, iface in ipairs(config.interfaces) do
+		if iface.device and iface.device ~= "" then
+			managed_devices[iface.device] = true
+		end
+	end
+
+	-- Get all current default routes
+	local output = exec("ip route show | grep '^default'")
+	if not output or output == "" then
+		return
+	end
+
+	-- Parse each default route and handle unmanaged ones
+	for line in output:gmatch("[^\r\n]+") do
+		-- Extract device from route line
+		-- Format: "default via X.X.X.X dev eth0 metric N" or "default dev eth0 metric N"
+		local device = line:match("dev%s+(%S+)")
+
+		if device and not managed_devices[device] then
+			-- This is an unmanaged route - demote it to metric 999
+			log(string.format("Found unmanaged default route on %s, demoting to metric 999", device))
+
+			local via = line:match("via%s+(%S+)")
+			if via then
+				auditable_exec(string.format("ip route delete default via %s dev %s", via, device))
+				auditable_exec(string.format("ip route replace default via %s dev %s metric 999", via, device))
+			else
+				auditable_exec(string.format("ip route delete default dev %s", device))
+				auditable_exec(string.format("ip route replace default dev %s metric 999", device))
+			end
+		end
+	end
+end
+
 -- Failover mode logic
 local function handle_failover(config)
+	cleanup_unmanaged_routes(config)
 	-- Check all interfaces
 	for _, iface in ipairs(config.interfaces) do
 		update_interface_status(iface)
@@ -436,6 +466,7 @@ end
 
 -- Multi-uplink mode logic with multipath routing
 local function handle_multiuplink(config)
+	cleanup_unmanaged_routes(config)
 	-- Check all interfaces
 	for _, iface in ipairs(config.interfaces) do
 		update_interface_status(iface)
