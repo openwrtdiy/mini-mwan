@@ -1,0 +1,60 @@
+-- Busted configuration for Mini-MWAN tests
+
+return {
+	-- Default configuration
+	_all = {
+		coverage = true,
+		verbose = true,
+		["suppress-pending"] = false,
+		["defer-print"] = true
+	},
+
+	default = {
+		-- Test file patterns
+		ROOT = {"spec/"},
+		pattern = "_spec%.lua$",
+
+		-- Lua path for requiring project files
+		lpath = "mini-mwan/files/?.lua;spec/?.lua",
+
+		-- Output format
+		output = "utfTerminal",
+
+		-- Shuffle tests (helps find test interdependencies)
+		shuffle = false,
+
+		-- Run tests in random order
+		["seed"] = os.time(),
+
+		-- Repeat tests to find flaky tests
+		["repeat"] = 1,
+
+		-- Enable code coverage
+		coverage = true,
+
+		-- Recursively find tests
+		recursive = true
+	},
+
+	-- Configuration for unit tests only
+	unit = {
+		ROOT = {"spec/unit/"},
+		pattern = "_spec%.lua$",
+		lpath = "mini-mwan/files/?.lua;spec/?.lua"
+	},
+
+	-- Configuration for integration tests only
+	integration = {
+		ROOT = {"spec/integration/"},
+		pattern = "_spec%.lua$",
+		lpath = "mini-mwan/files/?.lua;spec/?.lua"
+	},
+
+	-- Configuration for CI/CD (minimal output)
+	ci = {
+		output = "json",
+		verbose = false,
+		coverage = true,
+		["suppress-pending"] = true
+	}
+}

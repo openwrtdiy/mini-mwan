@@ -1,0 +1,33 @@
+-- LuaCov configuration for Mini-MWAN
+
+return {
+	-- Output file for coverage stats
+	statsfile = "luacov.stats.out",
+
+	-- Output file for report
+	reportfile = "luacov.report.out",
+
+	-- Patterns for files to include in coverage
+	include = {
+		"mini%-mwan/files",
+	},
+
+	-- Patterns for files to exclude from coverage
+	exclude = {
+		"spec/",          -- Don't measure coverage of tests
+		"luacov$",        -- Don't measure luacov itself
+		"busted",         -- Don't measure busted
+	},
+
+	-- Run reporter on completion
+	runreport = true,
+
+	-- Delete stats file after report
+	deletestats = false,
+
+	-- Coverage report options
+	reporter = "default",
+
+	-- Tick reporting (shows progress)
+	tick = false,
+}
