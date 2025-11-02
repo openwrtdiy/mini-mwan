@@ -52,7 +52,8 @@ describe("FR-2.1: Failover Mode - End to End", function()
 					device = "eth0",
 					point_to_point = false,
 					gateway = "192.168.1.1",
-					status = "unknown",
+					does_exist = false,
+					is_up = false,
 					degraded = 0,
 					degraded_reason = "",
 					latency = 0
@@ -62,7 +63,8 @@ describe("FR-2.1: Failover Mode - End to End", function()
 					device = "eth1",
 					point_to_point = false,
 					gateway = "192.168.2.1",
-					status = "unknown",
+					does_exist = false,
+					is_up = false,
 					degraded = 0,
 					degraded_reason = "",
 					latency = 0
@@ -110,14 +112,15 @@ describe("FR-2.1: Failover Mode - End to End", function()
 				-- Primary interface (eth0) - UP but NOT pingable (connection lost)
 				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
-				["ping.*eth0.*1%.1%.1%.1"] = mocks.mock_ping_failure(),  -- FAILED
+				["ping.*eth0"] = mocks.mock_ping_failure(),  -- FAILED
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- Backup interface (eth1) - UP and pingable
 				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
-				["ping.*eth1.*8%.8%.8%.8"] = mocks.mock_ping_success(20.0),  -- OK
-				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
+				["ping.*eth1"] = mocks.mock_ping_success(20.0),  -- OK
+				["ip %-6 addr show dev eth1"] = "",  -- No IPv6
+				["ip route show"] = mocks.ip_route_show_eth0_default()
 			}
 
 			local exec_mock = mocks.build_exec_mock(exec_responses)
@@ -292,7 +295,7 @@ describe("FR-2.1: Failover Mode - End to End", function()
 				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip link show dev eth1"] = "4: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:69 brd ff:ff:ff:ff:ff:ff",
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
-				["ping.*eth1.*8%.8%.8%.8"] = mocks.mock_ping_success(15.0),
+				["ping.*eth1"] = mocks.mock_ping_success(15.0),
 				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
 			}
 

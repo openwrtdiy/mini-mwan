@@ -70,13 +70,14 @@ end
 function M.mock_ping_success(latency)
 	latency = latency or 12.5
 	return string.format([[
-PING 1.1.1.1 (1.1.1.1): 56(84) bytes of data.
-64 bytes from 1.1.1.1: icmp_seq=1 ttl=57 time=%.1f ms
-64 bytes from 1.1.1.1: icmp_seq=2 ttl=57 time=%.1f ms
-64 bytes from 1.1.1.1: icmp_seq=3 ttl=57 time=%.1f ms
+PING 1.1.1.1 (1.1.1.1): 56 data bytes
+64 bytes from 1.1.1.1: seq=0 ttl=56 time=41.550 ms
+64 bytes from 1.1.1.1: seq=1 ttl=56 time=40.945 ms
+64 bytes from 1.1.1.1: seq=2 ttl=56 time=41.602 ms
+
 --- 1.1.1.1 ping statistics ---
-3 packets transmitted, 3 received, 0%% packet loss, time 2003ms
-rtt min/avg/max/mdev = %.1f/%.1f/%.1f/0.5 ms
+3 packets transmitted, 3 packets received, 0%% packet loss
+round-trip min/avg/max = %.1f/%.1f/%.1f/0.5 ms
 ]], latency, latency, latency, latency-1, latency, latency+1)
 end
 
@@ -88,6 +89,15 @@ PING 1.1.1.1 (1.1.1.1): 56(84) bytes of data.
 3 packets transmitted, 0 received, 100% packet loss, time 2003ms
 ]]
 end
+
+-- Mock failed ping response
+function M.ip_route_show_eth0_default()
+	return [[
+default via 192.168.68.1 dev eth0 proto static src 192.168.68.158 metric 1
+default via 192.168.10.1 dev eth1 proto static src 192.168.10.4 metric 900
+]]
+end
+
 
 -- Mock ifstatus with gateway
 function M.mock_ifstatus_with_gateway(gateway)

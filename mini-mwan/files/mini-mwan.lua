@@ -119,21 +119,22 @@ local function check_ping(target, count, timeout, device)
 end
 
 -- Check if interface exists and is UP
-local function check_interface_up(iface)
+-- Returns: (does_exist: boolean, is_up: boolean)
+local function check_interface_is_up(iface)
 	local cmd = string.format("ip addr show dev %s 2>/dev/null", iface)
 	local output = deps.exec(cmd)
 
 	if not output or output:match("does not exist") then
-		return false, "not_exist"
+		return false, false  -- Device doesn't exist
 	end
 
 	-- Check if interface has UP flag
 	-- Example: "3: wan: <BROADCAST,MULTICAST,UP,LOWER_UP>"
 	if output:match("<[^>]*UP[^>]*>") then
-		return true, "up"
+		return true, true  -- Exists and is UP
 	end
 
-	return false, "down"
+	return true, false  -- Exists but is DOWN
 end
 
 -- Get network statistics for interface (TX/RX bytes)
@@ -222,7 +223,7 @@ local function check_degradation(iface_cfg, iface_state)
 		iface_state.degraded_reason = "no_gateway"
 		log(string.format("%s (%s): DEGRADED - Regular interface missing gateway (DHCP incomplete?)",
 		                 iface_cfg.name, iface_cfg.device or ""))
-		return
+		return iface_state
 	end
 
 	-- Check 2: IPv6 detection (application not compatible with IPv6)
@@ -236,9 +237,10 @@ local function check_degradation(iface_cfg, iface_state)
 			iface_state.degraded_reason = "ipv6_detected"
 			log(string.format("%s (%s): DEGRADED - IPv6 address detected (not supported)",
 							iface_cfg.name, iface_cfg.device))
-			return
+			return iface_state
 		end
 	end
+	return iface_state
 end
 
 -- Add/update default route for an interface
@@ -291,87 +293,62 @@ local function load_config()
 	return config
 end
 
--- Update interface status with timestamp tracking
--- Reads config (enabled, device, ping_target, ping_count, ping_timeout)
--- Mutates state (status, status_since, last_check, latency)
-local function update_interface_status(iface_cfg, iface_state)
-	if not (iface_cfg.enabled and iface_cfg.device and iface_cfg.ping_target) then
-		local new_status = "disabled"
-		iface_state.last_check = deps.time()
 
-		if iface_state.status ~= new_status then
-			iface_state.status_since = deps.time()
-		end
-		iface_state.status = new_status
-
-		-- Save state
-		interface_state[iface_cfg.name] = {
-			status = iface_state.status,
-			status_since = iface_state.status_since,
-			latency = 0,
-			last_check = iface_state.last_check,
-			degraded = iface_state.degraded,
-			degraded_reason = iface_state.degraded_reason,
-			}
-		return
-	end
-
-	-- Check if interface exists and is UP
-	local if_up, if_state = check_interface_up(iface_cfg.device)
-	if not if_up then
-		local new_status = if_state == "not_exist" and "interface_down" or "interface_down"
-		iface_state.last_check = deps.time()
-
-		-- Track status changes
-		if iface_state.status ~= new_status then
-			iface_state.status_since = deps.time()
-			log(string.format("%s (%s): Status changed from %s to %s (interface %s)",
-				iface_cfg.name, iface_cfg.device, iface_state.status or "unknown", new_status, if_state))
-		end
-
-		iface_state.status = new_status
-		iface_state.latency = 0
-
-		-- Save state
-		interface_state[iface_cfg.name] = {
-			status = iface_state.status,
-			status_since = iface_state.status_since,
-			latency = iface_state.latency,
-			last_check = iface_state.last_check,
-			degraded = iface_state.degraded,
-			degraded_reason = iface_state.degraded_reason,
-		}
-		return
-	end
-
-	-- Interface is UP, now ping through it to check connectivity
-	-- Note: gateway can be nil for point-to-point interfaces (e.g., VPN tunnels)
-	local alive, latency = check_ping(iface_cfg.ping_target, iface_cfg.ping_count, iface_cfg.ping_timeout, iface_cfg.device)
-	local new_status = alive and "up" or "down"
+local function save_interface_state(iface_name, iface_state)
 	iface_state.last_check = deps.time()
-
-	-- Track status changes
-	if iface_state.status ~= new_status then
-		iface_state.status_since = deps.time()
-		log(string.format("%s (%s): Status changed from %s to %s",
-			iface_cfg.name, iface_cfg.device, iface_state.status or "unknown", new_status))
-	end
-
-	iface_state.status = new_status
-	iface_state.latency = latency
-
-	-- Save state for next config reload
-	interface_state[iface_cfg.name] = {
-		status = iface_state.status,
+	-- Save state
+	interface_state[iface_name] = {
+		does_exist = iface_state.does_exist,
+		is_up = iface_state.is_up,
 		status_since = iface_state.status_since,
 		latency = iface_state.latency,
 		last_check = iface_state.last_check,
 		degraded = iface_state.degraded,
 		degraded_reason = iface_state.degraded_reason,
 	}
+	return iface_state
+end
 
-	log(string.format("%s (%s): %s (latency: %.2fms, ping via %s to %s)",
-		iface_cfg.name, iface_cfg.device, iface_state.status, latency, iface_cfg.device, iface_cfg.ping_target))
+local function transition_iface_down(iface_state)
+	if iface_state.is_up then
+		iface_state.latency = 0
+		iface_state.is_up = false
+		iface_state.status_since = deps.time()
+	end
+	return iface_state
+end
+
+local function transition_iface_up(iface_state)
+	if not iface_state.is_up then
+		iface_state.is_up = true
+		iface_state.does_exist = true
+		iface_state.status_since = deps.time()
+	end
+	return iface_state
+end
+
+-- Update interface status with timestamp tracking
+-- Reads config (enabled, device, ping_target, ping_count, ping_timeout)
+-- Mutates state (does_exist, is_up, status_since, last_check, latency)
+local function update_interface_status(iface_cfg, iface_state)
+
+	-- Check if interface exists and is UP
+	local does_exist, is_up = check_interface_is_up(iface_cfg.device)
+	iface_state.does_exist = does_exist;
+
+	if not is_up then
+		return save_interface_state(iface_cfg.name, transition_iface_down(iface_state))
+	end
+
+	-- Interface exists and is UP, now ping through it to check connectivity
+	-- Note: gateway can be nil for point-to-point interfaces (e.g., VPN tunnels)
+	local alive, latency = check_ping(iface_cfg.ping_target, iface_cfg.ping_count, iface_cfg.ping_timeout, iface_cfg.device)
+    if alive then
+		iface_state.latency = latency
+		return save_interface_state(iface_cfg.name, transition_iface_up(iface_state))
+	else
+		return save_interface_state(iface_cfg.name, transition_iface_down(iface_state))
+	end
 end
 
 -- Probe state based on config (mutable, ephemeral)
@@ -387,26 +364,20 @@ local function probe_state(config)
 
 		-- State contains ONLY mutable runtime fields
 		local iface_state = {
-			status = saved_state.status or "unknown",
+			does_exist = saved_state.does_exist or false,
+			is_up = saved_state.is_up or false,
 			status_since = saved_state.status_since,
 			latency = saved_state.latency or 0,
-			gateway = nil,  -- Discovered at runtime
+			-- Discover gateway and check degradation
+			gateway = get_gateway(iface_cfg.name),
 			degraded = saved_state.degraded or 0,
 			degraded_reason = saved_state.degraded_reason or "",
 			last_check = saved_state.last_check,
-			point_to_point = false  -- Auto-detected (not from config)
+			-- Detect interface type (MUST be done before gateway/degradation checks)
+			point_to_point = detect_point_to_point(iface_cfg.device)
 		}
 
-		-- Detect interface type (MUST be done before gateway/degradation checks)
-		if iface_cfg.device and iface_cfg.device ~= "" then
-			iface_state.point_to_point = detect_point_to_point(iface_cfg.device)
-		end
-
-		-- Discover gateway and check degradation
-		if iface_cfg.device and iface_cfg.device ~= "" then
-			iface_state.gateway = get_gateway(iface_cfg.name)  -- Use interface name, not device
-			check_degradation(iface_cfg, iface_state)
-		end
+		check_degradation(iface_cfg, iface_state)
 
 		-- Probe actual interface status (up/down, ping, latency)
 		update_interface_status(iface_cfg, iface_state)
@@ -438,8 +409,9 @@ local function write_view(config, state)
 			-- Config fields
 			f:write(string.format("device=%s\n", iface_cfg.device or ""))
 			f:write(string.format("ping_target=%s\n", iface_cfg.ping_target or ""))
-			-- State fields
-			f:write(string.format("status=%s\n", iface_state.status))
+			-- State fields (boolean)
+			f:write(string.format("does_exist=%s\n", iface_state.does_exist and "1" or "0"))
+			f:write(string.format("is_up=%s\n", iface_state.is_up and "1" or "0"))
 			f:write(string.format("status_since=%s\n", iface_state.status_since or ""))
 			f:write(string.format("last_check=%s\n", iface_state.last_check or ""))
 			f:write(string.format("latency=%.2f\n", iface_state.latency))
@@ -490,20 +462,22 @@ end
 -- Classify interfaces into usable (for routing) and unusable
 -- Returns {usable = {{cfg, state}, ...}, unusable = {{cfg, state}, ...}}
 local function classify_interfaces(config, state)
+
 	local usable = {}
 	local unusable = {}
 
 	for i, iface_cfg in ipairs(config.interfaces) do
 		local iface_state = state.interfaces[i]
 
-		-- Skip degraded non-P2P interfaces entirely (they're neither usable nor unusable for routing)
-		if iface_state.degraded == 1 and not iface_state.point_to_point then
-			log(string.format("Skipping degraded interface %s (%s): %s",
-							iface_cfg.name, iface_cfg.device, iface_state.degraded_reason))
-		elseif iface_state.status == "up" then
-			table.insert(usable, {cfg = iface_cfg, state = iface_state})
-		elseif iface_cfg.enabled and iface_cfg.device and iface_state.status ~= "interface_down" then
-			table.insert(unusable, {cfg = iface_cfg, state = iface_state})
+		-- we don't touch routes of degraded interfaces
+		if iface_state.degraded == 0 then
+			if iface_state.is_up then
+				-- Interface is up and has connectivity (ping succeeded)
+				table.insert(usable, {cfg = iface_cfg, state = iface_state})
+			else
+				-- Interface is up but no connectivity (ping failed)
+				table.insert(unusable, {cfg = iface_cfg, state = iface_state})
+			end
 		end
 	end
 
@@ -625,7 +599,7 @@ if os.getenv("MINI_MWAN_TEST_MODE") then
 		check_degradation = check_degradation,
 		set_route = set_route,
 		check_ping = check_ping,
-		check_interface_up = check_interface_up,
+		check_interface_is_up = check_interface_is_up,
 		set_routes_for_failover = set_routes_for_failover,
 		set_route_multiuplink = set_route_multiuplink,
 		load_config = load_config,

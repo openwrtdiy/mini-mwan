@@ -17,60 +17,46 @@ describe("FR-1.6: Degradation Detection", function()
 	end)
 
 	describe("check_degradation()", function()
-		local iface
+		local first_iface_cfg
+		local first_iface_state
 
 		before_each(function()
 			-- Standard interface object
-			iface = {
+			first_iface_cfg = {
 				name = "wan1",
 				device = "eth0",
-				point_to_point = false,
+				metric = 1,
+			}
+			first_iface_state = {
 				gateway = nil,
 				degraded = 0,
-				degraded_reason = "",
-				point_to_point = false  -- Auto-detected
+				degraded_reason = ""
 			}
 		end)
 
 		describe("Requirement: Regular interface without gateway", function()
 			it("should mark as degraded with reason 'no_gateway'", function()
 				-- GIVEN: Regular interface with no gateway (DHCP incomplete)
-				local iface_cfg = {
-					name = "wan1",
-					device = "eth0",
-					}
-				local iface_state = {
-					gateway = nil,
-					degraded = 0,
-					degraded_reason = ""
-				}
 
 				-- WHEN: Checking degradation
-				mini_mwan.check_degradation(iface_cfg, iface_state)
+				mini_mwan.check_degradation(first_iface_cfg, first_iface_state)
 
 				-- THEN: Should be marked degraded
-				assert.equals(1, iface_state.degraded)
-				assert.equals("no_gateway", iface_state.degraded_reason)
+				assert.equals(1, first_iface_state.degraded)
+				assert.equals("no_gateway", first_iface_state.degraded_reason)
 			end)
 
 			it("should prevent route setting for degraded interface", function()
 				-- GIVEN: Degraded regular interface
-				local iface_cfg = {
-					name = "wan1",
-					device = "eth0",
-					metric = 1,
-					}
-				local iface_state = {
-					degraded = 1,
-					degraded_reason = "no_gateway"
-				}
+				first_iface_state.degraded = 1
+				first_iface_state.degraded_reason = "no gateway"
 
 				local exec_mock = mocks.build_exec_mock({})
 				local deps = mocks.build_deps({ exec = exec_mock })
 				mini_mwan.set_dependencies(deps)
 
 				-- WHEN: Attempting to set route
-				mini_mwan.set_route(iface_cfg, iface_state)
+				mini_mwan.set_route(first_iface_cfg, first_iface_state)
 
 				-- THEN: No route command should be executed
 				local route_cmds = mocks.get_route_commands()
@@ -89,7 +75,7 @@ describe("FR-1.6: Degradation Detection", function()
 					gateway = nil,
 					degraded = 0,
 					degraded_reason = "",
-				point_to_point = true  -- P2P interface (VPN/tunnel)
+					point_to_point = true  -- P2P interface (VPN/tunnel)
 				}
 
 				-- WHEN: Checking degradation
@@ -129,15 +115,7 @@ describe("FR-1.6: Degradation Detection", function()
 		describe("Requirement: Interface with IPv6 address", function()
 			it("should mark as degraded with reason 'ipv6_detected'", function()
 				-- GIVEN: Interface with IPv6 address
-				local iface_cfg = {
-					name = "wan1",
-					device = "eth0",
-					}
-				local iface_state = {
-					gateway = "192.168.1.1",  -- Has IPv4 gateway
-					degraded = 0,
-					degraded_reason = ""
-				}
+				first_iface_state.gateway= "192.168.1.1"  -- Has IPv4 gateway
 
 				-- Mock IPv6 detection (ip -6 addr show returns IPv6)
 				local exec_mock = function(cmd)
@@ -152,26 +130,18 @@ describe("FR-1.6: Degradation Detection", function()
 				mini_mwan.set_dependencies(deps)
 
 				-- WHEN: Checking degradation
-				mini_mwan.check_degradation(iface_cfg, iface_state)
+				local result_state = mini_mwan.check_degradation(first_iface_cfg, first_iface_state)
 
 				-- THEN: Should be degraded (IPv6 not supported)
-				assert.equals(1, iface_state.degraded)
-				assert.equals("ipv6_detected", iface_state.degraded_reason)
+				assert.equals(1, result_state.degraded)
+				assert.equals("ipv6_detected", result_state.degraded_reason)
 			end)
 		end)
 
 		describe("Requirement: Regular interface with gateway", function()
 			it("should NOT mark as degraded", function()
 				-- GIVEN: Regular interface with gateway (healthy, no IPv6)
-				local iface_cfg = {
-					name = "wan1",
-					device = "eth0",
-					}
-				local iface_state = {
-					gateway = "192.168.1.1",
-					degraded = 0,
-					degraded_reason = ""
-				}
+				first_iface_state.gateway = "192.168.1.1"
 
 				-- Mock no IPv6
 				local exec_mock = function(cmd)
@@ -181,21 +151,17 @@ describe("FR-1.6: Degradation Detection", function()
 				mini_mwan.set_dependencies(deps)
 
 				-- WHEN: Checking degradation
-				mini_mwan.check_degradation(iface_cfg, iface_state)
+				local result_state = mini_mwan.check_degradation(first_iface_cfg, first_iface_state)
 
 				-- THEN: Should be healthy
-				assert.equals(0, iface_state.degraded)
-				assert.equals("", iface_state.degraded_reason)
+				assert.equals(0, result_state.degraded)
+				assert.equals("", result_state.degraded_reason)
 			end)
 		end)
 
 		describe("Requirement: Auto-recovery from degraded state", function()
 			it("should clear degraded flag when gateway appears", function()
 				-- GIVEN: Interface was degraded but now has gateway
-				local iface_cfg = {
-					name = "wan1",
-					device = "eth0",
-					}
 				local iface_state = {
 					gateway = "192.168.1.1",  -- Gateway now available
 					degraded = 1,
@@ -210,11 +176,11 @@ describe("FR-1.6: Degradation Detection", function()
 				mini_mwan.set_dependencies(deps)
 
 				-- WHEN: Checking degradation again
-				mini_mwan.check_degradation(iface_cfg, iface_state)
+				local result_state = mini_mwan.check_degradation(first_iface_cfg, iface_state)
 
 				-- THEN: Should be healthy now (auto-recovered)
-				assert.equals(0, iface_state.degraded)
-				assert.equals("", iface_state.degraded_reason)
+				assert.equals(0, result_state.degraded)
+				assert.equals("", result_state.degraded_reason)
 			end)
 		end)
 	end)
@@ -229,20 +195,12 @@ describe("FR-1.6: Degradation Detection", function()
 					{
 						name = "wan1",
 						device = "eth0",
-						metric = 1,
-						degraded = 1,
-						degraded_reason = "no_gateway",
-						point_to_point = false,
-						status = "down"
+						metric = 1
 					},
 					{
 						name = "wan2",
 						device = "wg0",
-						metric = 2,
-						degraded = 0,
-						point_to_point = true,
-						status = "up",
-						gateway = nil
+						metric = 2
 					}
 				}
 			}

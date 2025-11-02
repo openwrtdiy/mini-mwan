@@ -3,7 +3,7 @@
 return {
 	-- Default configuration
 	_all = {
-		coverage = true,
+		coverage = false,
 		verbose = true,
 		["suppress-pending"] = false,
 		["defer-print"] = true
@@ -30,7 +30,7 @@ return {
 		["repeat"] = 1,
 
 		-- Enable code coverage
-		coverage = true,
+		coverage = false,
 
 		-- Recursively find tests
 		recursive = true
