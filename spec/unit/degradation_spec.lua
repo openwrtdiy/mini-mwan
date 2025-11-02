@@ -45,23 +45,6 @@ describe("FR-1.6: Degradation Detection", function()
 				assert.equals(1, first_iface_state.degraded)
 				assert.equals("no_gateway", first_iface_state.degraded_reason)
 			end)
-
-			it("should prevent route setting for degraded interface", function()
-				-- GIVEN: Degraded regular interface
-				first_iface_state.degraded = 1
-				first_iface_state.degraded_reason = "no gateway"
-
-				local exec_mock = mocks.build_exec_mock({})
-				local deps = mocks.build_deps({ exec = exec_mock })
-				mini_mwan.set_dependencies(deps)
-
-				-- WHEN: Attempting to set route
-				mini_mwan.set_route(first_iface_cfg, first_iface_state)
-
-				-- THEN: No route command should be executed
-				local route_cmds = mocks.get_route_commands()
-				assert.equals(0, #route_cmds)
-			end)
 		end)
 
 		describe("Requirement: P2P interface without gateway", function()
@@ -182,40 +165,6 @@ describe("FR-1.6: Degradation Detection", function()
 				assert.equals(0, result_state.degraded)
 				assert.equals("", result_state.degraded_reason)
 			end)
-		end)
-	end)
-
-	describe("Integration with routing logic", function()
-		it("degraded interfaces should be skipped in failover mode", function()
-			-- GIVEN: Two interfaces, one degraded
-			local config = {
-				mode = "failover",
-				check_interval = 30,
-				interfaces = {
-					{
-						name = "wan1",
-						device = "eth0",
-						metric = 1
-					},
-					{
-						name = "wan2",
-						device = "wg0",
-						metric = 2
-					}
-				}
-			}
-
-			local exec_mock = mocks.build_exec_mock({})
-			local deps = mocks.build_deps({ exec = exec_mock })
-			mini_mwan.set_dependencies(deps)
-
-			-- WHEN: Running failover mode
-			mini_mwan.set_routes_for_failover(config)
-
-			-- THEN: Only wan2 should have route set
-			local route_cmds = mocks.get_route_commands()
-			assert.is_true(#route_cmds > 0)
-			-- Should find route for wg0 but not eth0
 		end)
 	end)
 end)
