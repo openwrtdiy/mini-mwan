@@ -545,7 +545,7 @@ end
 local function at_least_two_wans_configured(config)
 	local wan1_configured = config.interfaces[1] and config.interfaces[1].device and config.interfaces[1].device ~= ""
 	local wan2_configured = config.interfaces[2] and config.interfaces[2].device and config.interfaces[2].device ~= ""
-	return wan1_configured & wan2_configured
+	return wan1_configured and wan2_configured
 end
 
 local function work(config)
