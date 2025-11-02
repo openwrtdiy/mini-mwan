@@ -10,189 +10,182 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:74
-msgid "config.interface.enabled.description"
-msgstr ""
+msgid "Use this WAN interface for routing"
+msgstr "Use this WAN interface for routing"
 
 # LuCI Main Page
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:15
-msgid "luci.mainpage.title"
-msgstr ""
+msgid "Mini Multi-WAN"
+msgstr "Mini Multi-WAN"
 
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:16
-msgid "luci.mainpage.description"
-msgstr ""
+msgid "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
+msgstr "Lightweight multi‑WAN manager for WireGuard tunnels with failover and load‑balancing."
 
 # LuCI Sections
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:19
-msgid "luci.section.global.title"
-msgstr ""
+msgid "Global Settings"
+msgstr "Global Settings"
 
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:43
-msgid "luci.section.interfaces.title"
-msgstr ""
+msgid "WAN Interfaces"
+msgstr "WAN Interfaces"
 
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:44
-msgid "luci.section.interfaces.description"
-msgstr ""
+msgid "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
+msgstr "WAN interface configuration for multi‑WAN management. Typically WireGuard tunnels (wg0, wg1, etc)."
 
 # LuCI Actions
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:55
-msgid "luci.action.add.interface"
-msgstr ""
+msgid "Add WAN Interface"
+msgstr "Add WAN Interface"
 
 # LuCI Modals
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:51
-msgid "luci.modal.interface.title"
-msgstr ""
+msgid "WAN Interface"
+msgstr "WAN Interface"
 
 # LuCI Error Messages
-msgid "luci.errors.duplicate.device"
-msgstr ""
+msgid "Duplicate device "%s" found. Each interface must use a unique device."
+msgstr "Duplicate device \"%s\" found. Each interface must use a unique device."
 
-msgid "luci.errors.duplicate.ping.target"
-msgstr ""
+msgid "Ping target "%s" is already used by another interface"
+msgstr "Ping target \"%s\" is already used by another interface"
 
-#: htdocs/luci-static/resources/view/mini-mwan/overview.js:90
-#: htdocs/luci-static/resources/view/mini-mwan/status.js:142
-#: htdocs/luci-static/resources/view/mini-mwan/status.js:146
-#: htdocs/luci-static/resources/view/mini-mwan/status.js:150
-#: htdocs/luci-static/resources/view/mini-mwan/status.js:89
 # LuCI UI Strings
-msgid "luci.none"
-msgstr ""
+msgid "None"
+msgstr "None"
 
-msgid "luci.bytes"
-msgstr ""
+msgid "B"
+msgstr "B"
 
-msgid "luci.kilobytes"
-msgstr ""
+msgid "KB"
+msgstr "KB"
 
-msgid "luci.megabytes"
-msgstr ""
+msgid "MB"
+msgstr "MB"
 
-msgid "luci.gigabytes"
-msgstr ""
+msgid "GB"
+msgstr "GB"
 
-msgid "luci.terabytes"
-msgstr ""
+msgid "TB"
+msgstr "TB"
 
-msgid "luci.seconds"
-msgstr ""
+msgid "seconds"
+msgstr "seconds"
 
 # LuCI Status Page
-msgid "luci.status.page.title"
-msgstr ""
+msgid "Mini-MWAN Status"
+msgstr "Mini-MWAN Status"
 
-msgid "luci.status.page.description"
-msgstr ""
+msgid "Real-time monitoring of WAN interface status"
+msgstr "Real-time monitoring of WAN interface status"
 
-msgid "luci.status.no.information"
-msgstr ""
+msgid "No status information available. Make sure the Mini-MWAN service is running."
+msgstr "No status information available. Make sure the Mini-MWAN service is running."
 
-msgid "luci.status.check.with"
-msgstr ""
+msgid "Check with: "
+msgstr "Check with: "
 
-msgid "luci.status.service.information"
-msgstr ""
+msgid "Service Information"
+msgstr "Service Information"
 
-msgid "luci.status.mode"
-msgstr ""
+msgid "Mode:"
+msgstr "Mode:"
 
-msgid "luci.status.check.interval"
-msgstr ""
+msgid "Check Interval:"
+msgstr "Check Interval:"
 
-msgid "luci.status.timestamp"
-msgstr ""
+msgid "Last status check of WAN interfaces:"
+msgstr "Last status check of WAN interfaces:"
 
-msgid "luci.status.interface.status.section"
-msgstr ""
+msgid "Interface Status"
+msgstr "Interface Status"
 
-msgid "luci.status.interface"
-msgstr ""
+msgid "Interface"
+msgstr "Interface"
 
-msgid "luci.status.status"
-msgstr ""
+msgid "Status"
+msgstr "Status"
 
-msgid "luci.status.status.since"
-msgstr ""
+msgid "Since"
+msgstr "Since"
 
-msgid "luci.status.latency"
-msgstr ""
+msgid "Latency"
+msgstr "Latency"
 
-msgid "luci.status.rx.tx.bytes"
-msgstr ""
+msgid "Traffic (RX/TX)"
+msgstr "Traffic (RX/TX)"
 
-msgid "luci.status.gateway"
-msgstr ""
+msgid "Gateway"
+msgstr "Gateway"
 
-msgid "luci.status.last.check"
-msgstr ""
+msgid "Last Check"
+msgstr "Last Check"
 
-msgid "luci.status.auto.refresh"
-msgstr ""
+msgid "Status updates automatically every 5 seconds"
+msgstr "Status updates automatically every 5 seconds"
 
 # Configuration: Global Settings
-msgid "config.settings.enabled.name"
-msgstr ""
+msgid "Enable"
+msgstr "Enable"
 
-msgid "config.settings.enabled.description"
-msgstr ""
+msgid "Enable Mini Multi-WAN service. At least two WAN interfaces must be configured."
+msgstr "Enable Mini Multi-WAN service. At least two WAN interfaces must be configured."
 
-msgid "config.settings.mode.name"
-msgstr ""
+msgid "Mode"
+msgstr "Mode"
 
-msgid "config.settings.mode.description"
-msgstr ""
+msgid "Operating mode: failover (primary/backup) or multi-uplink (load balancing)"
+msgstr "Operating mode: failover (primary/backup) or multi-uplink (load balancing)"
 
-msgid "config.settings.mode.failover"
-msgstr ""
+msgid "Failover (Primary/Backup)"
+msgstr "Failover (Primary/Backup)"
 
-msgid "config.settings.mode.multiuplink"
-msgstr ""
+msgid "Multi-Uplink (Load Balancing)"
+msgstr "Multi-Uplink (Load Balancing)"
 
-msgid "config.settings.check_interval.name"
-msgstr ""
+msgid "Check Interval"
+msgstr "Check Interval"
 
-msgid "config.settings.check_interval.description"
-msgstr ""
+msgid "How often to check WAN connectivity (seconds)"
+msgstr "How often to check WAN connectivity (seconds)"
 
 # Configuration: WAN Interface
-msgid "config.interface.enabled.name"
-msgstr ""
+msgid "Enabled"
+msgstr "Enabled"
 
-msgid "config.interface.device.name"
-msgstr ""
+msgid "Device"
+msgstr "Device"
 
-msgid "config.interface.device.description"
-msgstr ""
+msgid "Network interface device (e.g., wg0, wg1, eth1)"
+msgstr "Network interface device (e.g., wg0, wg1, eth1)"
 
-msgid "config.interface.metric.name"
-msgstr ""
+msgid "Metric"
+msgstr "Metric"
 
-msgid "config.interface.metric.description"
-msgstr ""
+msgid "Route metric (lower = higher priority). Used in failover mode only."
+msgstr "Route metric (lower = higher priority). Used in failover mode only."
 
-msgid "config.interface.weight.name"
-msgstr ""
+msgid "Weight"
+msgstr "Weight"
 
-msgid "config.interface.weight.description"
-msgstr ""
+msgid "Traffic distribution weight for multi-uplink mode. Used in multi-uplink mode only."
+msgstr "Traffic distribution weight for multi-uplink mode. Used in multi-uplink mode only."
 
-msgid "config.interface.ping_target.name"
-msgstr ""
+msgid "Ping Target"
+msgstr "Ping Target"
 
-msgid "config.interface.ping_target.description"
-msgstr ""
+msgid "IP address to ping for connectivity check"
+msgstr "IP address to ping for connectivity check"
 
-msgid "config.interface.ping_count.name"
-msgstr ""
+msgid "Ping Count"
+msgstr "Ping Count"
 
-msgid "config.interface.ping_count.description"
-msgstr ""
+msgid "Number of ping attempts"
+msgstr "Number of ping attempts"
 
-msgid "config.interface.ping_timeout.name"
-msgstr ""
+msgid "Timeout"
+msgstr "Timeout"
 
-msgid "config.interface.ping_timeout.description"
-msgstr ""
+msgid "Ping timeout (seconds)"
+msgstr "Ping timeout (seconds)"
+
+msgid "No Gateway"
+msgstr "No Gateway"
+
+msgid "IPv6 Detected"
+msgstr "IPv6 Detected"

@@ -34,7 +34,10 @@ return view.extend({
 				current_iface = {
 					name: iface_match[1],
 					device: '',
-					status: 'unknown',
+					does_exist: false,
+					is_up: false,
+					degraded: 0,
+					degraded_reason: '',
 					status_since: '',
 					last_check: '',
 					latency: 0,
@@ -55,8 +58,18 @@ return view.extend({
 			var value = kv[1].trim();
 
 			if (current_iface) {
-				// Interface property
-				current_iface[key] = value;
+				// Interface property - parse specific types
+				if (key === 'does_exist' || key === 'is_up') {
+					current_iface[key] = value === '1';
+				} else if (key === 'degraded') {
+					current_iface[key] = parseInt(value);
+				} else if (key === 'latency') {
+					current_iface[key] = parseFloat(value);
+				} else if (key === 'rx_bytes' || key === 'tx_bytes') {
+					current_iface[key] = parseInt(value);
+				} else {
+					current_iface[key] = value;
+				}
 			} else {
 				// Global property
 				if (key === 'timestamp') {
@@ -103,16 +116,46 @@ return view.extend({
 		return d.toLocaleString();
 	},
 
-	getStatusBadge: function(status) {
-		var badges = {
-			'up': '<span style="color: #4CAF50; font-weight: bold;">● UP</span>',
-			'down': '<span style="color: #f44336; font-weight: bold;">● DOWN</span>',
-			'interface_down': '<span style="color: #FF9800;">⚠ Interface Down</span>',
-			'disabled': '<span style="color: #9E9E9E;">○ Disabled</span>',
-			'no_gateway': '<span style="color: #FF9800;">⚠ No Gateway</span>',
-			'unknown': '<span style="color: #9E9E9E;">? Unknown</span>'
-		};
-		return badges[status] || badges['unknown'];
+	getStatusBadge: function(iface) {
+		// Priority: degraded > doesn't exist > is_up + connectivity
+		if (iface.degraded === 1) {
+			var reason = iface.degraded_reason || 'unknown';
+			var reasons = {
+				'no_gateway': _('No Gateway'),
+				'ipv6_detected': _('IPv6 Detected')
+			};
+			var reasonText = reasons[reason] || reason;
+			return '<span style="color: #FF9800; font-weight: bold;">⚠ Degraded (' + reasonText + ')</span>';
+		}
+
+		if (!iface.does_exist) {
+			return '<span style="color: #f44336; font-weight: bold;">✖ Interface Not Found</span>';
+		}
+
+		if (!iface.is_up) {
+			return '<span style="color: #f44336; font-weight: bold;">↓ Interface Down</span>';
+		}
+
+		if (iface.latency > 0) {
+			return '<span style="color: #4CAF50; font-weight: bold;">● UP</span>';
+		}
+
+		// Interface is up but no connectivity (ping failed)
+		return '<span style="color: #FF9800; font-weight: bold;">⚠ No Connectivity</span>';
+	},
+
+	getRowStyle: function(iface) {
+		// Red background for interfaces that don't exist
+		if (!iface.does_exist) {
+			return 'background-color: #ffebee;';
+		}
+
+		// Yellow background for degraded interfaces
+		if (iface.degraded === 1) {
+			return 'background-color: #fff9c4;';
+		}
+
+		return '';
 	},
 
 	render: function(data) {
@@ -176,10 +219,12 @@ return view.extend({
 			var tx = this.formatBytes(parseInt(iface.tx_bytes) || 0);
 			var traffic = rx + ' / ' + tx;
 
-			table.appendChild(E('tr', { 'class': 'tr' }, [
+			var rowStyle = this.getRowStyle(iface);
+
+			table.appendChild(E('tr', { 'class': 'tr', 'style': rowStyle }, [
 				E('td', { 'class': 'td' }, E('strong', {}, iface.name)),
 				E('td', { 'class': 'td' }, iface.device || '-'),
-				E('td', { 'class': 'td' }, E('span', {}, this.getStatusBadge(iface.status))),
+				E('td', { 'class': 'td' }, E('span', {}, this.getStatusBadge(iface))),
 				E('td', { 'class': 'td' }, this.formatTimestamp(iface.status_since)),
 				E('td', { 'class': 'td' }, iface.latency ? parseFloat(iface.latency).toFixed(2) + ' ms' : '-'),
 				E('td', { 'class': 'td' }, traffic),
