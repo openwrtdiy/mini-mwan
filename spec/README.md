@@ -46,9 +46,33 @@ The `/var/run/mini-mwan.status` file is a **presentation layer** that merges con
 ### Key Functions
 - `load_config()` → Returns immutable config from UCI
 - `probe_state(config)` → Discovers/collects mutable state based on config
-- `handle_failover(config, state)` → Reads config, mutates state, returns new state
-- `handle_multiuplink(config, state)` → Reads config, mutates state, returns new state
+- `set_routes_for_failover(usable_ifaces)` → Sets routes in main table with configured metrics
+- `set_route_multiuplink(usable_ifaces)` → Sets multipath route in main table
 - `write_view(config, state)` → Merges both into status file for LuCI
+
+### Routing Table Scope
+
+**Important:** Mini-mwan manages routes **only in the main routing table**.
+
+- All `ip route` commands operate on the main table (default behavior)
+- If you have policy-based routing with `ip rule` lookups into custom tables, those rules take **precedence** over mini-mwan's routes
+- This is a **feature**: advanced users can use custom routing tables to bypass or override mini-mwan when needed
+
+Example of policy routing overriding mini-mwan:
+```bash
+# Mini-mwan sets routes in main table
+ip route show table main
+# default via 192.168.1.1 dev eth0 metric 1
+
+# But policy routing can override this
+ip rule show
+# 0:    from all lookup local
+# 100:  from 10.0.0.0/24 lookup vpn_table  ← Takes precedence!
+# 32766: from all lookup main
+# 32767: from all lookup default
+```
+
+In this example, traffic from `10.0.0.0/24` will use the `vpn_table` routing table, completely bypassing mini-mwan's routes in the main table.
 
 ### Function Signature Pattern
 All major functions follow this pattern:
@@ -233,7 +257,7 @@ describe("Scenario: End-to-end test", function()
 		mini_mwan.set_dependencies(deps)
 
 		-- WHEN: Running complete mode handler
-		state = mini_mwan.handle_failover(config, state)
+		state = mini_mwan.set_routes_for_failover(config, state)
 
 		-- THEN: Verify routing commands
 		mocks.assert_route_set("192.168.1.1", "eth0", 1)

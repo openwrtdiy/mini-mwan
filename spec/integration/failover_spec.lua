@@ -222,12 +222,14 @@ describe("FR-2.1: Failover Mode - End to End", function()
 			local exec_responses = {
 				-- Regular interface (eth0) - has gateway
 				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
+				["ip link show dev eth0"] = "3: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:68 brd ff:ff:ff:ff:ff:ff",
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0"] = mocks.mock_ping_success(10.0),
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- VPN tunnel (wg0) - no gateway (P2P)
-				["ifstatus wan2"] = mocks.mock_ifstatus_p2p(),
+				["ifstatus wan2"] = mocks.mock_ifstatus_shared_medium_interface_without_gateway(),
+				["ip link show dev wg0"] = "12: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1220 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\n    link/none",
 				["ip addr show dev wg0"] = mocks.mock_interface_up(),
 				["ping.*wg0"] = mocks.mock_ping_success(50.0),
 				["ip %-6 addr show dev wg0"] = ""  -- No IPv6
@@ -239,7 +241,9 @@ describe("FR-2.1: Failover Mode - End to End", function()
 
 			-- Custom config with P2P interface
 			local vpn_config = {
+				enabled = true,
 				mode = "failover",
+				check_interval = 30,
 				interfaces = {
 					{
 						name = "wan1",
@@ -274,11 +278,43 @@ describe("FR-2.1: Failover Mode - End to End", function()
 	end)
 
 	describe("Scenario: Degraded interface should be skipped", function()
-		pending("should not route through interface without gateway", function()
-			-- TODO: This test needs to be rewritten to test degradation detection
-			-- It should create a config with an interface missing gateway,
-			-- call probe_state which should mark it degraded,
-			-- then call handle_failover which should skip it
+		it("should not route through shared medium interface without gateway", function()
+			-- GIVEN: wan1 is degraded (no gateway, DHCP incomplete), wan2 is healthy
+			local exec_responses = {
+				-- wan1 (eth0) - shared medium interface UP but no gateway (DHCP incomplete)
+				["ifstatus wan1"] = mocks.mock_ifstatus_shared_medium_interface_without_gateway(),  -- No gateway
+				["ip link show dev eth0"] = "3: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:68 brd ff:ff:ff:ff:ff:ff",
+				["ip addr show dev eth0"] = mocks.mock_interface_up(),
+				["ping.*eth0"] = mocks.mock_ping_success(10.0),
+				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
+
+				-- wan2 (eth1) - shared medium interface healthy with gateway
+				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
+				["ip link show dev eth1"] = "4: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:69 brd ff:ff:ff:ff:ff:ff",
+				["ip addr show dev eth1"] = mocks.mock_interface_up(),
+				["ping.*eth1.*8%.8%.8%.8"] = mocks.mock_ping_success(15.0),
+				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
+			}
+
+			local exec_mock = mocks.build_exec_mock(exec_responses)
+			local deps = mocks.build_deps({ exec = exec_mock })
+			mini_mwan.set_dependencies(deps)
+
+			-- WHEN: Running work cycle
+			mini_mwan.work(default_config)
+
+			-- THEN: Only wan2 should have a route (wan1 is degraded and skipped)
+			mocks.assert_route_set("192.168.2.1", "eth1", 2)
+
+			-- AND: wan1 should NOT have any route (degraded interfaces are skipped entirely)
+			local route_cmds = mocks.get_route_commands()
+			local eth0_routes = 0
+			for _, cmd in ipairs(route_cmds) do
+				if cmd:match("eth0") and not cmd:match("delete") then
+					eth0_routes = eth0_routes + 1
+				end
+			end
+			assert.equals(0, eth0_routes, "Degraded shared medium interface should not have routes set")
 		end)
 	end)
 end)

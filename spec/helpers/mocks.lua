@@ -106,6 +106,38 @@ function M.mock_ifstatus_with_gateway(gateway)
 end
 
 -- Mock ifstatus for P2P interface (no gateway)
+function M.mock_ifstatus_shared_medium_interface_without_gateway()
+return [[
+	{
+		"up": true,
+		"pending": false,
+		"available": true,
+		"autostart": true,
+		"dynamic": false,
+		"uptime": 11,
+		"l3_device": "lan1",
+		"proto": "static",
+		"device": "lan1",
+		"updated": [
+			"addresses"
+		],
+		"metric": 0,
+		"dns_metric": 0,
+		"delegation": true,
+		"ipv4-address": [
+			{
+				"address": "10.0.0.1",
+				"mask": 16
+			}
+		],
+		"route": [		],
+		"dns-server": [		],
+		"dns-search": [		],
+		"neighbors": [],
+	}
+	]]
+end
+-- Mock ifstatus for P2P interface (no gateway)
 function M.mock_ifstatus_p2p()
 	return [[{
 	"up": true,

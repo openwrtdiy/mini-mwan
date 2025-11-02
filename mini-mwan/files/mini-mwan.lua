@@ -242,15 +242,9 @@ local function check_degradation(iface_cfg, iface_state)
 end
 
 -- Add/update default route for an interface
--- Reads config (metric), reads state (degraded, point_to_point, gateway)
+-- Reads config (metric), reads state (gateway)
+-- Note: Only called for usable interfaces (degraded ones already filtered by classify_interfaces)
 local function set_route(iface_cfg, iface_state)
-	-- Skip degraded regular interfaces (they shouldn't have routes)
-	if iface_state.degraded == 1 and not iface_state.point_to_point then
-		log(string.format("Skipping route for degraded interface %s (%s): %s",
-							iface_cfg.name, iface_cfg.device, iface_state.degraded_reason))
-		return
-	end
-
 	-- Use 'replace' to handle both creation and update
 	if iface_state.gateway and iface_state.gateway ~= "" then
 		-- Regular interface with gateway (e.g., ethernet)
@@ -410,7 +404,7 @@ local function probe_state(config)
 
 		-- Discover gateway and check degradation
 		if iface_cfg.device and iface_cfg.device ~= "" then
-			iface_state.gateway = get_gateway(iface_cfg.device)
+			iface_state.gateway = get_gateway(iface_cfg.name)  -- Use interface name, not device
 			check_degradation(iface_cfg, iface_state)
 		end
 
@@ -518,7 +512,7 @@ end
 
 -- Handle unusable interfaces by setting them to metric 900
 -- This keeps them routable for ping testing but prevents them from being used for traffic
-local function handle_unusable_interfaces(unusable)
+local function deprioritize_unusable_interfaces(unusable)
 	for _, iface in ipairs(unusable) do
 		-- Use 'replace' instead of 'add' to handle cases where route already exists
 		-- But we still need to delete first, so that eventually all duplicates get removed
@@ -535,47 +529,24 @@ end
 
 -- Failover mode logic
 -- Receives only usable interfaces (already classified)
--- Sorts by metric priority and sets routes accordingly
-local function handle_failover(usable_ifaces)
-	-- Check if any interfaces are available
-	if #usable_ifaces == 0 then
-		log("WARNING: No WAN connections are available!")
-		return
-	end
-
-	-- Sort by metric (lowest = highest priority)
-	local sorted = {}
+-- Sets routes with configured metrics - kernel handles priority automatically
+local function set_routes_for_failover(usable_ifaces)
+	-- Set all routes with their configured metrics
+	-- Kernel routing table automatically uses lowest metric as primary
 	for _, iface in ipairs(usable_ifaces) do
-		table.insert(sorted, iface)
-	end
-	table.sort(sorted, function(a, b) return a.cfg.metric < b.cfg.metric end)
-
-	-- Use the highest priority (lowest metric) interface as primary
-	local primary = sorted[1]
-	set_route(primary.cfg, primary.state)
-
-	-- Set backup routes with their original metrics
-	for i = 2, #sorted do
-		local backup = sorted[i]
-		set_route(backup.cfg, backup.state)
+		set_route(iface.cfg, iface.state)
 	end
 end
 
 -- Multi-uplink mode logic with multipath routing
 -- Receives only usable interfaces (already classified)
 -- Creates a single multipath route with weighted load balancing
-local function handle_multiuplink(usable_ifaces)
+local function set_route_multiuplink(usable_ifaces)
 	-- Check if any interfaces are available
 	if #usable_ifaces == 0 then
 		log("WARNING: No active WAN connections!")
 		return
 	end
-
-	-- Remove all existing default routes (except metric 900)
-	auditable_exec("ip route show " ..
-					"| grep '^default' " ..
-					"| grep -v 'metric 900' " ..
-					"| while read route; do ip route del $route 2>/dev/null; done")
 
 	-- Build multipath route command
 	-- ip route replace default nexthop via GW1 dev DEV1 weight W1 nexthop dev DEV2 weight W2
@@ -612,13 +583,13 @@ local function work(config)
 	local classified = classify_interfaces(config, state)
 
 	-- Handle unusable interfaces (set metric 900 so pings still work)
-	handle_unusable_interfaces(classified.unusable)
+	deprioritize_unusable_interfaces(classified.unusable)
 
 	-- Run appropriate routing mode with only usable interfaces
 	if config.mode == "failover" then
-		handle_failover(classified.usable)
+		set_routes_for_failover(classified.usable)
 	elseif config.mode == "multiuplink" then
-		handle_multiuplink(classified.usable)
+		set_route_multiuplink(classified.usable)
 	end
 
 	-- Write view (merges config + state for presentation)
@@ -655,13 +626,13 @@ if os.getenv("MINI_MWAN_TEST_MODE") then
 		set_route = set_route,
 		check_ping = check_ping,
 		check_interface_up = check_interface_up,
-		handle_failover = handle_failover,
-		handle_multiuplink = handle_multiuplink,
+		set_routes_for_failover = set_routes_for_failover,
+		set_route_multiuplink = set_route_multiuplink,
 		load_config = load_config,
 		probe_state = probe_state,
 		update_interface_status = update_interface_status,
 		classify_interfaces = classify_interfaces,
-		handle_unusable_interfaces = handle_unusable_interfaces,
+		deprioritize_unusable_interfaces = deprioritize_unusable_interfaces,
 		work = work
 	}
 else

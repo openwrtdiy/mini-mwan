@@ -252,7 +252,7 @@ describe("FR-1.6: Degradation Detection", function()
 			mini_mwan.set_dependencies(deps)
 
 			-- WHEN: Running failover mode
-			mini_mwan.handle_failover(config)
+			mini_mwan.set_routes_for_failover(config)
 
 			-- THEN: Only wan2 should have route set
 			local route_cmds = mocks.get_route_commands()
