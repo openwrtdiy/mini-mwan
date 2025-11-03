@@ -3,6 +3,7 @@
 'require fs';
 'require ui';
 'require poll';
+var version = 'test2';
 
 return view.extend({
 	load: function() {
@@ -28,12 +29,11 @@ return view.extend({
 			var line = lines[i].trim();
 			if (!line) continue;
 
-			// Check for interface section
+			// Check for interface section (section name is device name)
 			var iface_match = line.match(/^\[(.+)\]$/);
 			if (iface_match) {
 				current_iface = {
-					name: iface_match[1],
-					device: '',
+					name: iface_match[1],  // Section name is the device name
 					does_exist: false,
 					is_up: false,
 					degraded: 0,
@@ -200,7 +200,6 @@ return view.extend({
 		// Interface status table
 		var table = E('table', { 'class': 'table cbi-section-table' }, [
 			E('tr', { 'class': 'tr table-titles' }, [
-				E('th', { 'class': 'th' }, _('Interface')),
 				E('th', { 'class': 'th' }, _('Device')),
 				E('th', { 'class': 'th' }, _('Status')),
 				E('th', { 'class': 'th' }, _('Since')),
@@ -222,8 +221,7 @@ return view.extend({
 			var rowStyle = this.getRowStyle(iface);
 
 			table.appendChild(E('tr', { 'class': 'tr', 'style': rowStyle }, [
-				E('td', { 'class': 'td' }, E('strong', {}, iface.name)),
-				E('td', { 'class': 'td' }, iface.device || '-'),
+				E('td', { 'class': 'td' }, E('strong', {}, iface.name)),  // name is now the device name
 				E('td', { 'class': 'td' }, E('span', {}, this.getStatusBadge(iface))),
 				E('td', { 'class': 'td' }, this.formatTimestamp(iface.status_since)),
 				E('td', { 'class': 'td' }, iface.latency ? parseFloat(iface.latency).toFixed(2) + ' ms' : '-'),

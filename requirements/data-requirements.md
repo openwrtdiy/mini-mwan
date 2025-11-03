@@ -13,7 +13,7 @@ config settings 'settings'
 	option enabled '0|1'
 	option mode 'failover|multiuplink'
 	option check_interval '<seconds>'
-	option audit '0|1'
+	option audit 'emerg|alert|crit|err|warning|notice|info|debug'
 
 config interface '<name>'
 	option enabled '0|1'

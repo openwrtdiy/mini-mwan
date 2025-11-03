@@ -258,6 +258,10 @@ local function check_degradation(iface_cfg, iface_state)
 	return iface_state
 end
 
+-- It could happen that there are more than one route with this interface
+-- one of legitimate reasons - reconfiguration (and restart) of mini-mwan. previous instance
+-- is usually terminated by LuCI and restarted. therefore there will be a leftover route from previous run
+-- and we need to delete it
 local function delete_all_routes_except(iface_cfg)
 	local output = system_probe(string.format("ip route show default dev %s", iface_cfg.device))
 
@@ -319,16 +323,15 @@ local function load_config()
 	}
 
 	-- Load all interface configurations (config only, no state)
+	-- Section name is the device name (e.g., config interface 'eth0')
 	deps.uci_cursor():foreach("mini-mwan", "interface", function(section)
 		local iface_cfg = {
-			enabled = section.enabled == "1",
 			device = section.device,
 			metric = tonumber(section.metric) or 10,
 			weight = tonumber(section.weight) or 3,
 			ping_target = section.ping_target,
 			ping_count = tonumber(section.ping_count) or 3,
 			ping_timeout = tonumber(section.ping_timeout) or 2
-			-- point_to_point is NOT in config - it's auto-detected at runtime
 		}
 
 		table.insert(config.interfaces, iface_cfg)
@@ -365,7 +368,6 @@ end
 local function transition_iface_up(iface_state)
 	if not iface_state.is_up then
 		iface_state.is_up = true
-		iface_state.does_exist = true
 		iface_state.status_since = deps.time()
 	end
 	return iface_state
@@ -484,7 +486,7 @@ local function cleanup_unmanaged_routes(config)
 	end
 
 	-- Get all current default routes
-	local output = system_probe("ip route show default'")
+	local output = system_probe("ip route show default")
 	if not output or output == "" then
 		return
 	end
