@@ -44,7 +44,7 @@ This document specifies the requirements for mini-mwan, including:
 │                                              │
 │  ┌────────────┐         ┌──────────────┐   │
 │  │   netifd   │◄────────┤  mini-mwan   │   │
-│  │ (network   │ ifstatus│  daemon      │   │
+│  │ (network   │ ubus    │  daemon      │   │
 │  │  daemon)   │         │              │   │
 │  └─────┬──────┘         └──────┬───────┘   │
 │        │                       │            │

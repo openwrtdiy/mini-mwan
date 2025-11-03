@@ -47,7 +47,7 @@ function M.build_exec_mock(responses)
 
 	Usage:
 		local mock = M.build_exec_mock({
-			["ifstatus wan1"] = '{"route":[{"target":"0.0.0.0","nexthop":"192.168.1.1"}]}',
+			["ubus call network.interface dump"] = mocks.mock_ubus_with_gateway("eth0", "192.168.1.1"),
 			["ping.*eth0"] = "3 packets transmitted, 3 received",
 		})
 	]]
@@ -99,67 +99,52 @@ default via 192.168.10.1 dev eth1 proto static src 192.168.10.4 metric 900
 end
 
 
--- Mock ifstatus with gateway
-function M.mock_ifstatus_with_gateway(gateway)
-	return string.format([[{
-	"up": true,
-	"pending": false,
-	"available": true,
-	"route": [
-		{
-			"target": "0.0.0.0",
-			"mask": 0,
-			"nexthop": "%s"
-		}
-	]
-}]], gateway)
+-- Mock ubus network.interface dump with multiple interfaces
+function M.mock_ubus_network_dump(interfaces)
+	--[[
+	Build ubus network.interface dump response with multiple interfaces
+
+	Usage:
+		local mock = M.mock_ubus_network_dump({
+			{ l3_device = "eth0", gateway = "192.168.1.1" },
+			{ l3_device = "eth1", gateway = "192.168.2.1" },
+			{ l3_device = "wg0", gateway = nil },  -- P2P interface
+		})
+	]]
+	local interface_list = {}
+
+	for _, iface in ipairs(interfaces) do
+		local routes = {}
+		if iface.gateway then
+			table.insert(routes, {
+				target = "0.0.0.0",
+				mask = 0,
+				nexthop = iface.gateway
+			})
+		end
+
+		table.insert(interface_list, {
+			l3_device = iface.l3_device,
+			route = routes
+		})
+	end
+
+	local json = require("cjson")
+	return json.encode({ interface = interface_list })
 end
 
--- Mock ifstatus for P2P interface (no gateway)
-function M.mock_ifstatus_shared_medium_interface_without_gateway()
-return [[
-	{
-		"up": true,
-		"pending": false,
-		"available": true,
-		"autostart": true,
-		"dynamic": false,
-		"uptime": 11,
-		"l3_device": "lan1",
-		"proto": "static",
-		"device": "lan1",
-		"updated": [
-			"addresses"
-		],
-		"metric": 0,
-		"dns_metric": 0,
-		"delegation": true,
-		"ipv4-address": [
-			{
-				"address": "10.0.0.1",
-				"mask": 16
-			}
-		],
-		"route": [		],
-		"dns-server": [		],
-		"dns-search": [		],
-		"neighbors": [],
-	}
-	]]
+-- Mock ubus dump with single interface with gateway (convenience helper)
+function M.mock_ubus_with_gateway(device, gateway)
+	return M.mock_ubus_network_dump({
+		{ l3_device = device, gateway = gateway }
+	})
 end
--- Mock ifstatus for P2P interface (no gateway)
-function M.mock_ifstatus_p2p()
-	return [[{
-	"up": true,
-	"pending": false,
-	"available": true,
-	"route": [
-		{
-			"target": "0.0.0.0",
-			"mask": 0
-		}
-	]
-}]]
+
+-- Mock ubus dump with P2P interface (no gateway) (convenience helper)
+function M.mock_ubus_p2p(device)
+	return M.mock_ubus_network_dump({
+		{ l3_device = device, gateway = nil }
+	})
 end
 
 -- Mock interface UP state

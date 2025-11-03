@@ -37,7 +37,7 @@ This document maps functional requirements to their corresponding test files.
 
 #### FR-1.3: Gateway Discovery
 **Test Cases** in `spec/unit/gateway_spec.lua`:
-- ✓ Extract gateway from ifstatus JSON
+- ✓ Extract gateway from ubus dump JSON
 - ✓ Handle P2P interface (no gateway)
 - ✓ Handle invalid JSON response
 - ✓ Handle empty response

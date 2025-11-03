@@ -178,7 +178,6 @@ tx_bytes=<bytes>
 **Lua Table Structure**:
 ```lua
 {
-    name = "wan1",                    -- UCI section name
     enabled = true,                   -- boolean
     device = "eth0",                  -- string
     metric = 1,                       -- integer
@@ -238,11 +237,11 @@ interface_state = {
 ### DR-5.1 netifd JSON Interface
 **ID**: DR-5.1
 **Priority**: Critical
-**Description**: Gateway discovery via netifd's `ifstatus` command.
+**Description**: Gateway discovery via netifd's `ubus dump` command.
 
 **Command**:
 ```bash
-ifstatus <interface_name>
+ubus call network.interface dump
 ```
 
 **Expected JSON Response**:

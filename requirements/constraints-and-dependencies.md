@@ -103,7 +103,7 @@ opkg install lua libuci-lua luci-lib-nixio lua-cjson
 |------|---------|---------|
 | `ip` | `ip-full` or `ip-tiny` | Route management |
 | `ping` | `busybox` | Connectivity testing |
-| `ifstatus` | `netifd` | Gateway discovery |
+| `ubus` | `netifd` | Gateway discovery |
 | `logger` | `busybox` | Syslog integration |
 | `grep` | `busybox` | Text filtering |
 
@@ -119,7 +119,7 @@ opkg install lua libuci-lua luci-lib-nixio lua-cjson
 
 | Service | Purpose | Interaction |
 |---------|---------|-------------|
-| netifd | Network management | Provides interface status via `ifstatus` |
+| netifd | Network management | Provides interface status via `ubus call ` |
 | procd | Process management | Manages daemon lifecycle |
 | uci | Configuration system | Provides config access |
 | logd | Log management | Receives syslog messages |
@@ -300,7 +300,7 @@ opkg install lua libuci-lua luci-lib-nixio lua-cjson
 **Description**: Limitations of netifd integration.
 
 **Constraints**:
-- `ifstatus` returns JSON (requires parsing)
+- `ubus dump` returns JSON (requires parsing)
 - No API for route notifications
 - No callbacks for interface state changes
 - Gateway information may lag actual state

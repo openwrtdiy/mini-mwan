@@ -83,7 +83,7 @@ local function log(msg, priority)
 	end
 end
 
--- Execute read-only system probe (ping, ifstatus, ip route show, etc.)
+-- Execute read-only system probe (ping, ubus, ip route show, etc.)
 -- Logged at debug level (7) - only visible when audit_log_level >= 7
 local function system_probe(cmd)
 	log(string.format("Probe: %s", cmd), "debug")  -- debug
@@ -258,8 +258,8 @@ local function check_degradation(iface_cfg, iface_state)
 	return iface_state
 end
 
-local function delete_all_routes_except_first(device)
-	local output = system_probe(string.format("ip route show default dev %s", device))
+local function delete_all_routes_except(iface_cfg)
+	local output = system_probe(string.format("ip route show default dev %s", iface_cfg.device))
 
 	if output and output ~= "" then
 		local routes = {}
@@ -267,27 +267,24 @@ local function delete_all_routes_except_first(device)
 			table.insert(routes, line)
 		end
 
-		-- Skip the first route (lowest metric = our route), delete the rest
-		for i = 2, #routes do
+		for i = 1, #routes do
 			local line = routes[i]
-			-- Extract metric if present
-			local metric = line:match("metric (%d+)")
+			local metric = tonumber(line:match("metric (%d+)"))
 			if metric then
-				system_intervention(string.format("ip route delete default dev %s metric %s 2>/dev/null",
-					device, metric))
+				-- Delete all routes except that one which we added with a given metric
+				if metric ~= iface_cfg.metric then
+					system_intervention(string.format("ip route delete default dev %s metric %s 2>/dev/null",
+						iface_cfg.device, metric))
+				end
 			else
 				system_intervention(string.format("ip route delete default dev %s 2>/dev/null",
-					device))
+					iface_cfg.device))
 			end
 		end
 	end
 end
 
--- Add/update default route for an interface
--- Reads config (metric), reads state (gateway)
--- Note: Only called for usable interfaces (degraded ones already filtered by classify_interfaces)
-local function set_route(iface_cfg, iface_state)
-	-- Step 1: Add our route with the correct metric (ensures valid route exists)
+local function replace_default_gw(iface_cfg, iface_state)
 	if iface_state.gateway and iface_state.gateway ~= "" then
 		-- Regular interface with gateway (e.g., ethernet)
 		system_intervention(string.format("ip route replace default via %s dev %s metric %d",
@@ -297,8 +294,16 @@ local function set_route(iface_cfg, iface_state)
 		system_intervention(string.format("ip route replace default dev %s metric %d",
 										iface_cfg.device, iface_cfg.metric))
 	end
+end
+
+-- Add/update default route for an interface
+-- Reads config (metric), reads state (gateway)
+-- Note: Only called for usable interfaces (degraded ones already filtered by classify_interfaces)
+local function set_route(iface_cfg, iface_state)
+	-- Step 1: Add our route with the correct metric (ensures valid route exists)
+	replace_default_gw(iface_cfg, iface_state)
 	-- Step 2: Clean up duplicate routes for this device (created by external tools or by previous invocations of mini-mwan)
-	delete_all_routes_except_first(iface_cfg.device)
+	delete_all_routes_except(iface_cfg)
 end
 
 -- Load configuration from UCI (immutable)

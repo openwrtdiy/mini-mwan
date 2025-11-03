@@ -24,7 +24,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 			check_interval = 30,
 			interfaces = {
 				{
-					name = "wan1",
 					device = "eth0",
 					metric = 1,
 					ping_target = "1.1.1.1",
@@ -33,7 +32,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 					enabled = true,
 					},
 				{
-					name = "wan2",
 					device = "eth1",
 					metric = 2,
 					ping_target = "8.8.8.8",
@@ -48,7 +46,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		default_state = {
 			interfaces = {
 				{
-					name = "wan1",
 					device = "eth0",
 					point_to_point = false,
 					gateway = "192.168.1.1",
@@ -59,7 +56,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 					latency = 0
 				},
 				{
-					name = "wan2",
 					device = "eth1",
 					point_to_point = false,
 					gateway = "192.168.2.1",
@@ -77,14 +73,18 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		it("should use primary (lowest metric) interface", function()
 			-- GIVEN: Two interfaces configured, both UP
 			local exec_responses = {
+				-- ubus returns both interfaces with gateways
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
+
 				-- Primary interface (eth0) - UP and pingable
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0.*1%.1%.1%.1"] = mocks.mock_ping_success(10.5),
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- Backup interface (eth1) - UP and pingable
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1.*8%.8%.8%.8"] = mocks.mock_ping_success(15.2),
 				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
@@ -109,14 +109,18 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		it("should use backup interface when primary is down", function()
 			-- GIVEN: Primary is DOWN, backup is UP
 			local exec_responses = {
+				-- ubus returns both interfaces with gateways
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
+
 				-- Primary interface (eth0) - UP but NOT pingable (connection lost)
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0"] = mocks.mock_ping_failure(),  -- FAILED
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- Backup interface (eth1) - UP and pingable
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1"] = mocks.mock_ping_success(20.0),  -- OK
 				["ip %-6 addr show dev eth1"] = "",  -- No IPv6
@@ -146,9 +150,11 @@ describe("FR-2.1: Failover Mode - End to End", function()
 
 			-- CYCLE 1: Primary down
 			local exec_responses_cycle1 = {
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
 				["ip addr show dev eth0"] = mocks.mock_interface_down(),  -- Interface DOWN
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1"] = mocks.mock_ping_success(15.0),
 				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
@@ -168,11 +174,13 @@ describe("FR-2.1: Failover Mode - End to End", function()
 			mocks.reset()
 
 			local exec_responses_cycle2 = {
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),  -- Now UP
 				["ping.*eth0"] = mocks.mock_ping_success(10.0),        -- Now working
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1"] = mocks.mock_ping_success(15.0),
 				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
@@ -194,12 +202,14 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		it("should log warning but not crash", function()
 			-- GIVEN: All interfaces down
 			local exec_responses = {
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0"] = mocks.mock_ping_failure(),  -- FAILED
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1"] = mocks.mock_ping_failure(),  -- FAILED
 				["ip %-6 addr show dev eth1"] = ""  -- No IPv6
@@ -223,15 +233,19 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		it("should handle P2P interface (no gateway) correctly", function()
 			-- GIVEN: Regular interface (eth0) and VPN tunnel (wg0)
 			local exec_responses = {
+				-- ubus returns both: eth0 with gateway, wg0 without (P2P)
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = "192.168.1.1" },
+					{ l3_device = "wg0", gateway = nil }  -- P2P, no gateway
+				}),
+
 				-- Regular interface (eth0) - has gateway
-				["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
 				["ip link show dev eth0"] = "3: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:68 brd ff:ff:ff:ff:ff:ff",
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0"] = mocks.mock_ping_success(10.0),
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- VPN tunnel (wg0) - no gateway (P2P)
-				["ifstatus wan2"] = mocks.mock_ifstatus_shared_medium_interface_without_gateway(),
 				["ip link show dev wg0"] = "12: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1220 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\n    link/none",
 				["ip addr show dev wg0"] = mocks.mock_interface_up(),
 				["ping.*wg0"] = mocks.mock_ping_success(50.0),
@@ -249,7 +263,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 				check_interval = 30,
 				interfaces = {
 					{
-						name = "wan1",
 						device = "eth0",
 						metric = 1,
 						ping_target = "1.1.1.1",
@@ -258,7 +271,6 @@ describe("FR-2.1: Failover Mode - End to End", function()
 						enabled = true,
 							},
 					{
-						name = "wan2",
 						device = "wg0",
 						metric = 2,
 						ping_target = "10.0.0.1",
@@ -284,15 +296,19 @@ describe("FR-2.1: Failover Mode - End to End", function()
 		it("should not route through shared medium interface without gateway", function()
 			-- GIVEN: wan1 is degraded (no gateway, DHCP incomplete), wan2 is healthy
 			local exec_responses = {
+				-- ubus returns eth0 without gateway (degraded), eth1 with gateway
+				["ubus call network.interface dump"] = mocks.mock_ubus_network_dump({
+					{ l3_device = "eth0", gateway = nil },  -- No gateway (DHCP incomplete)
+					{ l3_device = "eth1", gateway = "192.168.2.1" }
+				}),
+
 				-- wan1 (eth0) - shared medium interface UP but no gateway (DHCP incomplete)
-				["ifstatus wan1"] = mocks.mock_ifstatus_shared_medium_interface_without_gateway(),  -- No gateway
 				["ip link show dev eth0"] = "3: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:68 brd ff:ff:ff:ff:ff:ff",
 				["ip addr show dev eth0"] = mocks.mock_interface_up(),
 				["ping.*eth0"] = mocks.mock_ping_success(10.0),
 				["ip %-6 addr show dev eth0"] = "",  -- No IPv6
 
 				-- wan2 (eth1) - shared medium interface healthy with gateway
-				["ifstatus wan2"] = mocks.mock_ifstatus_with_gateway("192.168.2.1"),
 				["ip link show dev eth1"] = "4: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\n    link/ether 60:cf:84:ee:10:69 brd ff:ff:ff:ff:ff:ff",
 				["ip addr show dev eth1"] = mocks.mock_interface_up(),
 				["ping.*eth1"] = mocks.mock_ping_success(15.0),

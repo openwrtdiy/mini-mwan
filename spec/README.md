@@ -33,7 +33,7 @@ Runtime state discovered and measured by the daemon:
 - `status` - Current interface status (up/down/disabled/interface_down)
 - `status_since` - Timestamp when status last changed
 - `latency` - Measured ping latency in milliseconds
-- `gateway` - Discovered gateway address (via `ifstatus`)
+- `gateway` - Discovered gateway address (via `ubus network.interface dump`)
 - `degraded` - Whether interface has configuration issues (0 or 1)
 - `degraded_reason` - Reason for degradation (no_gateway/ipv6_detected)
 - `last_check` - Timestamp of last probe
@@ -173,7 +173,6 @@ describe("Feature: Your Feature Name", function()
 	it("should do something specific", function()
 		-- GIVEN: Setup test conditions with config and state
 		local iface_cfg = {
-			name = "wan1",
 			device = "eth0",
 			metric = 1,
 			point_to_point = false
@@ -222,7 +221,6 @@ describe("Scenario: End-to-end test", function()
 			check_interval = 30,
 			interfaces = {
 				{
-					name = "wan1",
 					device = "eth0",
 					metric = 1,
 					ping_target = "1.1.1.1",
@@ -247,7 +245,7 @@ describe("Scenario: End-to-end test", function()
 		}
 
 		local exec_mock = mocks.build_exec_mock({
-			["ifstatus wan1"] = mocks.mock_ifstatus_with_gateway("192.168.1.1"),
+			["ubus call network.interface dump"] = mocks.mock_ubus_with_gateway("eth0", "192.168.1.1"),
 			["ping.*eth0"] = mocks.mock_ping_success(10.0),
 			["ip addr show dev eth0"] = mocks.mock_interface_up(),
 			["ip %-6 addr show dev eth0"] = ""  -- No IPv6
@@ -282,7 +280,7 @@ mocks.get_route_commands()          -- Get only route commands
 ```lua
 -- Build exec mock with pattern-based responses
 local exec_mock = mocks.build_exec_mock({
-	["ifstatus wan1"] = '{"route":[...]}',
+	["ubus call network.interface dump"] = mocks.mock_ubus_with_gateway("eth0", "192.168.1.1"),
 	["ping.*eth0"] = "3 packets transmitted, 3 received"
 })
 
@@ -297,8 +295,9 @@ local deps = mocks.build_deps({
 ```lua
 mocks.mock_ping_success(12.5)                        -- Successful ping with latency
 mocks.mock_ping_failure()                            -- Failed ping
-mocks.mock_ifstatus_with_gateway("192.168.1.1")     -- ifstatus with gateway
-mocks.mock_ifstatus_p2p()                            -- ifstatus without gateway (P2P)
+mocks.mock_ubus_with_gateway("eth0", "192.168.1.1") -- ubus dump with single interface with gateway
+mocks.mock_ubus_p2p("wg0")                           -- ubus dump with P2P interface (no gateway)
+mocks.mock_ubus_network_dump({...})                  -- ubus dump with multiple interfaces
 mocks.mock_interface_up()                            -- Interface UP state
 mocks.mock_interface_down()                          -- Interface DOWN state
 ```
@@ -391,9 +390,9 @@ end)
 ### 4. Test One Thing Per Test
 ```lua
 -- Good: Focused test
-it("should return gateway from ifstatus", function()
-	local gateway = get_gateway("eth0")
-	assert.equals("192.168.1.1", gateway)
+it("should return gateway from ubus", function()
+	local gateway_map = probe_all_gateways()
+	assert.<TODO>
 end)
 
 -- Bad: Multiple unrelated assertions

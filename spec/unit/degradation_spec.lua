@@ -23,7 +23,6 @@ describe("FR-1.6: Degradation Detection", function()
 		before_each(function()
 			-- Standard interface object
 			first_iface_cfg = {
-				name = "wan1",
 				device = "eth0",
 				metric = 1,
 			}
@@ -51,7 +50,6 @@ describe("FR-1.6: Degradation Detection", function()
 			it("should NOT mark as degraded", function()
 				-- GIVEN: P2P interface with no gateway (expected for VPN)
 				local iface_cfg = {
-					name = "wan2",
 					device = "wg0",
 					}
 				local iface_state = {
@@ -72,7 +70,6 @@ describe("FR-1.6: Degradation Detection", function()
 			it("should allow route setting without gateway", function()
 				-- GIVEN: P2P interface without gateway
 				local iface_cfg = {
-					name = "wan2",
 					device = "wg0",
 					metric = 1,
 					}
