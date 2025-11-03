@@ -30,8 +30,9 @@
 **Description**: The system SHALL automatically discover gateway addresses for managed interfaces.
 
 **Acceptance Criteria**:
-- Gateway MUST be obtained from netifd's `ifstatus` JSON output
-- System SHALL look for default route (target 0.0.0.0, mask 0) in route table
+- Gateway MUST be obtained using ubus network.interface.dump call
+- System SHALL look for default route (target "0.0.0.0", mask 0) in route table for each interface
+- Gateway discovery SHALL match interfaces by device name, not interface name
 - Missing gateway SHALL be handled gracefully for P2P interfaces
 - Gateway discovery SHALL occur on each configuration reload
 
@@ -117,12 +118,17 @@
 ### FR-2.4 Route Cleanup
 **ID**: FR-2.4
 **Priority**: Medium
-**Description**: The system SHALL manage the routing table to prevent conflicts.
+**Description**: The system SHALL manage the routing table to prevent conflicts and clean up duplicate routes.
 
 **Acceptance Criteria**:
+- When setting a route, duplicate default routes for the same device SHALL be cleaned up
+- Cleanup MUST happen AFTER the new route is set (to prevent routing downtime)
+- System SHALL query existing routes using `ip route show default dev <device>`
+- System SHALL preserve the lowest-metric route (our route) and delete all others
 - In multiuplink mode, all existing default routes (except metric 900) SHALL be removed before setting multipath route
 - Degraded non-P2P interfaces SHALL NOT have routes configured
 - Route changes SHALL use `replace` operation to handle both creation and update
+- Duplicate routes created by external tools SHALL be removed automatically
 
 ### FR-2.5 Metric Management
 **ID**: FR-2.5
@@ -160,7 +166,7 @@
 | `enabled` | boolean | 0 | Enable/disable daemon |
 | `mode` | string | "failover" | Operation mode: "failover" or "multiuplink" |
 | `check_interval` | integer | 30 | Seconds between health checks |
-| `audit` | boolean | 0 | Enable command audit logging |
+| `audit` | string | "none" | Command audit logging level supported values: emerg, alert, crit, err, warning, notice, info, debug |
 
 ### FR-3.3 Interface Configuration
 **ID**: FR-3.3
@@ -266,13 +272,15 @@
 ### FR-5.3 Audit Logging
 **ID**: FR-5.3
 **Priority**: Medium
-**Description**: The system SHALL optionally log all executed commands.
+**Description**: The system SHALL optionally log all executed commands at configurable verbosity levels.
 
 **Acceptance Criteria**:
-- Audit logging MUST be disabled by default
-- When enabled (`audit=1`), all shell commands MUST be logged before execution
+- Audit logging MUST be disabled by default (`audit="none"`)
+- When set to "info" level, important shell commands MUST be logged before execution
+- When set to "debug" level, all shell commands MUST be logged before execution
 - Audit logs SHALL use format: "Executing: <command>"
 - Audit logs MUST NOT log sensitive information
+- Log level names ("none", "info", "debug") SHALL be used instead of numeric values
 
 ### FR-5.4 Network Statistics
 **ID**: FR-5.4

@@ -29,10 +29,6 @@ local STATUS_FILE = "/var/run/mini-mwan.status"
 -- Persistent interface state (survives config reloads)
 local interface_state = {}
 
--- Audit flag for command logging (loaded from config)
-local audit_enabled = false
-
-
 -- Dependencies table (defaults to real implementations)
 local deps = {
 	exec = function(cmd)
@@ -68,26 +64,36 @@ local function set_dependencies(new_deps)
 end
 
 -- Logging function
-local function log(msg)
-	local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-	local log_msg = string.format("[%s] %s\n", timestamp, msg)
+-- Uses syslog for centralized logging (standard on OpenWRT)
+local function log(msg, priority)
+	priority = priority or "info"
 
-	-- Write to log file
-	local f = deps.open_file(LOG_FILE, "a")
-	if f then
-		f:write(log_msg)
-		f:close()
+	if nixio then
+		-- Production: use syslog via nixio
+		nixio.syslog(priority, msg)
+	else
+		-- Test mode: write to file with timestamp
+		local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+		local log_msg = string.format("[%s] %s\n", timestamp, msg)
+		local f = deps.open_file(LOG_FILE, "a")
+		if f then
+			f:write(log_msg)
+			f:close()
+		end
 	end
-
-	-- Also write to syslog
-	os.execute(string.format("logger -t mini-mwan '%s'", msg))
 end
 
--- Execute command with optional logging for auditability
-local function auditable_exec(cmd)
-	if audit_enabled then
-		log(string.format("Executing: %s", cmd))
-	end
+-- Execute read-only system probe (ping, ifstatus, ip route show, etc.)
+-- Logged at debug level (7) - only visible when audit_log_level >= 7
+local function system_probe(cmd)
+	log(string.format("Probe: %s", cmd), "debug")  -- debug
+	return deps.exec(cmd)
+end
+
+-- Execute state-changing system intervention (ip route add/replace/delete)
+-- Logged at notice level (5) - important to track configuration changes
+local function system_intervention(cmd)
+	log(string.format("Intervention: %s", cmd), "notice")  -- notice
 	return deps.exec(cmd)
 end
 
@@ -100,10 +106,10 @@ local function check_ping(target, count, timeout, device)
     -- Use -I to specify interface
 	local deadline = (count * timeout) + 2
 	local cmd = string.format("ping -I %s -c %d -W %d -w %d %s 2>&1", device, count, timeout, deadline, target)
-	local output = auditable_exec(cmd)
+	local output = system_probe(cmd)
 
 	if not output then
-		log(string.format("FAIL: no output from: ", cmd))
+		log(string.format("Ping failed: no output from command: %s", cmd), "err")  -- err
 		return false, 0
 	end
 
@@ -122,7 +128,7 @@ end
 -- Returns: (does_exist: boolean, is_up: boolean)
 local function check_interface_is_up(iface)
 	local cmd = string.format("ip addr show dev %s 2>/dev/null", iface)
-	local output = deps.exec(cmd)
+	local output = system_probe(cmd)
 
 	if not output or output:match("does not exist") then
 		return false, false  -- Device doesn't exist
@@ -163,33 +169,42 @@ local function get_interface_stats(device)
 	return rx_bytes, tx_bytes
 end
 
--- Get gateway for interface using ifstatus (netifd)
-local function get_gateway(iface)
-	local cmd = string.format("ifstatus %s 2>/dev/null", iface)
-	local output = deps.exec(cmd)
+-- Probe all gateways from network dump (call once per cycle)
+-- Returns device -> gateway map for O(1) lookups
+-- P2P interfaces and interfaces without gateways will not be in the map
+local function probe_all_gateways()
+	local cmd = "ubus call network.interface dump"
+	local output = system_probe(cmd)
+
+	local gateway_map = {}
 
 	if not output or output == "" then
-		return nil
+		return gateway_map
 	end
 
 	-- Parse JSON using cjson
 	local success, data = pcall(json.decode, output)
 	if not success or not data then
-		log(string.format("Failed to parse ifstatus JSON for %s", iface))
-		return nil
+		log("Failed to parse network.interface dump JSON", "err")  -- err
+		return gateway_map
 	end
 
-	-- Look for default route (target 0.0.0.0, mask 0)
-	if data.route then
-		for _, route in ipairs(data.route) do
-			if route.target == "0.0.0.0" and route.mask == 0 and route.nexthop then
-				return route.nexthop
+	-- Build device -> gateway map
+	if data.interface then
+		for _, iface in ipairs(data.interface) do
+			if iface.l3_device and iface.route then
+				-- Look for default route (target 0.0.0.0, mask 0)
+				for _, route in ipairs(iface.route) do
+					if route.target == "0.0.0.0" and route.mask == 0 and route.nexthop then
+						gateway_map[iface.l3_device] = route.nexthop
+						break
+					end
+				end
 			end
 		end
 	end
 
-	-- No gateway found - might be a point-to-point interface (VPN tunnel)
-	return nil
+	return gateway_map
 end
 
 -- Detect if interface is point-to-point (VPN, PPP, tunnel) or shared medium (ethernet)
@@ -200,7 +215,7 @@ local function detect_point_to_point(device)
 	end
 
 	local cmd = string.format("ip link show dev %s 2>/dev/null", device)
-	local output = deps.exec(cmd)
+	local output = system_probe(cmd)
 
 	if not output or output == "" then
 		return false
@@ -221,42 +236,69 @@ local function check_degradation(iface_cfg, iface_state)
 	if not iface_state.point_to_point and (not iface_state.gateway or iface_state.gateway == "") then
 		iface_state.degraded = 1
 		iface_state.degraded_reason = "no_gateway"
-		log(string.format("%s (%s): DEGRADED - Regular interface missing gateway (DHCP incomplete?)",
-		                 iface_cfg.name, iface_cfg.device or ""))
+		log(string.format("%s: DEGRADED - Regular interface missing gateway (DHCP incomplete?)",
+		                 iface_cfg.device or ""), "warning")  -- warning
 		return iface_state
 	end
 
 	-- Check 2: IPv6 detection (application not compatible with IPv6)
 	if iface_cfg.device and iface_cfg.device ~= "" then
 		local cmd = string.format("ip -6 addr show dev %s 2>/dev/null", iface_cfg.device)
-		local output = deps.exec(cmd)
+		local output = system_probe(cmd)
 
 		-- Check if output contains global IPv6 addresses
 		if output and output:match("inet6.*scope global") then
 			iface_state.degraded = 1
 			iface_state.degraded_reason = "ipv6_detected"
-			log(string.format("%s (%s): DEGRADED - IPv6 address detected (not supported)",
-							iface_cfg.name, iface_cfg.device))
+			log(string.format("%s: DEGRADED - IPv6 address detected (not supported)",
+							iface_cfg.device), "warning")  -- warning
 			return iface_state
 		end
 	end
 	return iface_state
 end
 
+local function delete_all_routes_except_first(device)
+	local output = system_probe(string.format("ip route show default dev %s", device))
+
+	if output and output ~= "" then
+		local routes = {}
+		for line in output:gmatch("[^\r\n]+") do
+			table.insert(routes, line)
+		end
+
+		-- Skip the first route (lowest metric = our route), delete the rest
+		for i = 2, #routes do
+			local line = routes[i]
+			-- Extract metric if present
+			local metric = line:match("metric (%d+)")
+			if metric then
+				system_intervention(string.format("ip route delete default dev %s metric %s 2>/dev/null",
+					device, metric))
+			else
+				system_intervention(string.format("ip route delete default dev %s 2>/dev/null",
+					device))
+			end
+		end
+	end
+end
+
 -- Add/update default route for an interface
 -- Reads config (metric), reads state (gateway)
 -- Note: Only called for usable interfaces (degraded ones already filtered by classify_interfaces)
 local function set_route(iface_cfg, iface_state)
-	-- Use 'replace' to handle both creation and update
+	-- Step 1: Add our route with the correct metric (ensures valid route exists)
 	if iface_state.gateway and iface_state.gateway ~= "" then
 		-- Regular interface with gateway (e.g., ethernet)
-		auditable_exec(string.format("ip route replace default via %s dev %s metric %d",
+		system_intervention(string.format("ip route replace default via %s dev %s metric %d",
 										iface_state.gateway, iface_cfg.device, iface_cfg.metric))
 	else
 		-- Point-to-point interface without gateway (e.g., VPN tunnel)
-		auditable_exec(string.format("ip route replace default dev %s metric %d",
+		system_intervention(string.format("ip route replace default dev %s metric %d",
 										iface_cfg.device, iface_cfg.metric))
 	end
+	-- Step 2: Clean up duplicate routes for this device (created by external tools or by previous invocations of mini-mwan)
+	delete_all_routes_except_first(iface_cfg.device)
 end
 
 -- Load configuration from UCI (immutable)
@@ -267,16 +309,13 @@ local function load_config()
 		enabled = deps.uci_cursor():get("mini-mwan", "settings", "enabled") == "1",
 		mode = deps.uci_cursor():get("mini-mwan", "settings", "mode") or "failover",
 		check_interval = tonumber(deps.uci_cursor():get("mini-mwan", "settings", "check_interval")) or 30,
+		log_level = deps.uci_cursor():get("mini-mwan", "settings", "audit") or "emerg",
 		interfaces = {}
 	}
-
-	-- Load audit flag (0 by default for no logging)
-	audit_enabled = deps.uci_cursor():get("mini-mwan", "settings", "audit") == "1"
 
 	-- Load all interface configurations (config only, no state)
 	deps.uci_cursor():foreach("mini-mwan", "interface", function(section)
 		local iface_cfg = {
-			name = section['.name'],
 			enabled = section.enabled == "1",
 			device = section.device,
 			metric = tonumber(section.metric) or 10,
@@ -294,10 +333,10 @@ local function load_config()
 end
 
 
-local function save_interface_state(iface_name, iface_state)
+local function save_interface_state(device, iface_state)
 	iface_state.last_check = deps.time()
 	-- Save state
-	interface_state[iface_name] = {
+	interface_state[device] = {
 		does_exist = iface_state.does_exist,
 		is_up = iface_state.is_up,
 		status_since = iface_state.status_since,
@@ -337,7 +376,7 @@ local function update_interface_status(iface_cfg, iface_state)
 	iface_state.does_exist = does_exist;
 
 	if not is_up then
-		return save_interface_state(iface_cfg.name, transition_iface_down(iface_state))
+		return save_interface_state(iface_cfg.device, transition_iface_down(iface_state))
 	end
 
 	-- Interface exists and is UP, now ping through it to check connectivity
@@ -345,9 +384,9 @@ local function update_interface_status(iface_cfg, iface_state)
 	local alive, latency = check_ping(iface_cfg.ping_target, iface_cfg.ping_count, iface_cfg.ping_timeout, iface_cfg.device)
     if alive then
 		iface_state.latency = latency
-		return save_interface_state(iface_cfg.name, transition_iface_up(iface_state))
+		return save_interface_state(iface_cfg.device, transition_iface_up(iface_state))
 	else
-		return save_interface_state(iface_cfg.name, transition_iface_down(iface_state))
+		return save_interface_state(iface_cfg.device, transition_iface_down(iface_state))
 	end
 end
 
@@ -358,9 +397,12 @@ local function probe_state(config)
 		interfaces = {}
 	}
 
+	-- Probe all gateways once per cycle (single ubus call)
+	local gateway_map = probe_all_gateways()
+
 	for _, iface_cfg in ipairs(config.interfaces) do
 		-- Restore persistent state if it exists
-		local saved_state = interface_state[iface_cfg.name] or {}
+		local saved_state = interface_state[iface_cfg.device] or {}
 
 		-- State contains ONLY mutable runtime fields
 		local iface_state = {
@@ -368,8 +410,8 @@ local function probe_state(config)
 			is_up = saved_state.is_up or false,
 			status_since = saved_state.status_since,
 			latency = saved_state.latency or 0,
-			-- Discover gateway and check degradation
-			gateway = get_gateway(iface_cfg.name),
+			-- Discover gateway from network dump (O(1) lookup)
+			gateway = gateway_map[iface_cfg.device],
 			degraded = saved_state.degraded or 0,
 			degraded_reason = saved_state.degraded_reason or "",
 			last_check = saved_state.last_check,
@@ -405,7 +447,7 @@ local function write_view(config, state)
 			-- Get current network statistics
 			local rx_bytes, tx_bytes = get_interface_stats(iface_cfg.device)
 
-			f:write(string.format("\n[%s]\n", iface_cfg.name))
+			f:write(string.format("\n[%s]\n", iface_cfg.device))
 			-- Config fields
 			f:write(string.format("device=%s\n", iface_cfg.device or ""))
 			f:write(string.format("ping_target=%s\n", iface_cfg.ping_target or ""))
@@ -437,7 +479,7 @@ local function cleanup_unmanaged_routes(config)
 	end
 
 	-- Get all current default routes
-	local output = deps.exec("ip route show | grep '^default'")
+	local output = system_probe("ip route show | grep '^default'")
 	if not output or output == "" then
 		return
 	end
@@ -451,11 +493,11 @@ local function cleanup_unmanaged_routes(config)
 		if device and not managed_devices[device] then
 			local via = line:match("via%s+(%S+)")
 			if via then
-				auditable_exec(string.format("ip route delete default via %s dev %s", via, device))
-				auditable_exec(string.format("ip route replace default via %s dev %s metric 999", via, device))
+				system_intervention(string.format("ip route delete default via %s dev %s", via, device))
+				system_intervention(string.format("ip route replace default via %s dev %s metric 999", via, device))
 			else
-				auditable_exec(string.format("ip route delete default dev %s", device))
-				auditable_exec(string.format("ip route replace default dev %s metric 999", device))
+				system_intervention(string.format("ip route delete default dev %s", device))
+				system_intervention(string.format("ip route replace default dev %s metric 999", device))
 			end
 		end
 	end
@@ -493,12 +535,12 @@ local function deprioritize_unusable_interfaces(unusable)
 		-- Use 'replace' instead of 'add' to handle cases where route already exists
 		-- But we still need to delete first, so that eventually all duplicates get removed
 		if iface.state.gateway and iface.state.gateway ~= "" then
-			auditable_exec(string.format("ip route delete default dev %s", iface.cfg.device))
-			auditable_exec(string.format("ip route replace default via %s dev %s metric 900",
+			system_intervention(string.format("ip route delete default dev %s", iface.cfg.device))
+			system_intervention(string.format("ip route replace default via %s dev %s metric 900",
 				iface.state.gateway, iface.cfg.device))
 		else
-			auditable_exec(string.format("ip route delete default dev %s", iface.cfg.device))
-			auditable_exec(string.format("ip route replace default dev %s metric 900", iface.cfg.device))
+			system_intervention(string.format("ip route delete default dev %s", iface.cfg.device))
+			system_intervention(string.format("ip route replace default dev %s metric 900", iface.cfg.device))
 		end
 	end
 end
@@ -520,7 +562,7 @@ end
 local function set_route_multiuplink(usable_ifaces)
 	-- Check if any interfaces are available
 	if #usable_ifaces == 0 then
-		log("WARNING: No active WAN connections!")
+		log("No active WAN connections!", "warning")  -- warning
 		return
 	end
 
@@ -539,7 +581,7 @@ local function set_route_multiuplink(usable_ifaces)
 	end
 
 	local multipath_cmd = "ip route replace default " .. table.concat(route_parts, " ")
-	auditable_exec(multipath_cmd)
+	system_intervention(multipath_cmd)
 end
 
 local function at_least_two_wans_configured(config)
@@ -574,17 +616,23 @@ end
 
 -- Main daemon loop
 local function main()
-	log("Mini-MWAN daemon starting")
+	-- Initialize syslog
+	nixio.openlog("mini-mwan")
+
+	log("Mini-MWAN daemon starting", "notice")  -- notice
 
 	while true do
 		-- Load immutable config from UCI
 		local config = load_config()
 
+		-- Update log level filter after config reload
+		nixio.setlogmask("upto", config.log_level)
+
 		if config.enabled then
 			if at_least_two_wans_configured(config) then
 				work(config)
 			else
-				log("ERROR: Both WAN interfaces must be configured. refuse to work!")
+				log("Both WAN interfaces must be configured. Refusing to work!", "err")  -- err
 			end
 		end
 
@@ -596,7 +644,7 @@ end
 if os.getenv("MINI_MWAN_TEST_MODE") then
 	return {
 		set_dependencies = set_dependencies,
-		get_gateway = get_gateway,
+		probe_all_gateways = probe_all_gateways,
 		detect_point_to_point = detect_point_to_point,
 		check_degradation = check_degradation,
 		set_route = set_route,

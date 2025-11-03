@@ -98,7 +98,44 @@ return view.extend({
 		o.datatype = 'ipaddr';
 		o.rmempty = false;
 		o.modalonly = true;
-		o.placeholder = '1.1.1.1';
+
+		// Smart default: pick first available IP from well-known public DNS servers
+		o.load = function(section_id) {
+			var value = uci.get('mini-mwan', section_id, 'ping_target');
+			if (value) {
+				return value;
+			}
+
+			// List of well-known public DNS/connectivity check IPs
+			var candidates = [
+				'1.1.1.1',       // Cloudflare DNS
+				'8.8.8.8',       // Google DNS
+				'9.9.9.9',       // Quad9 DNS
+				'1.0.0.1',       // Cloudflare DNS alternate
+				'8.8.4.4',       // Google DNS alternate
+				'208.67.222.222' // OpenDNS
+			];
+
+			// Get already-used IPs
+			var sections = uci.sections('mini-mwan', 'interface');
+			var used = {};
+			for (var i = 0; i < sections.length; i++) {
+				if (sections[i]['.name'] !== section_id && sections[i].ping_target) {
+					used[sections[i].ping_target] = true;
+				}
+			}
+
+			// Find first available IP
+			for (var i = 0; i < candidates.length; i++) {
+				if (!used[candidates[i]]) {
+					return candidates[i];
+				}
+			}
+
+			// Fallback if all are used
+			return candidates[0];
+		};
+
 		o.validate = function(section_id, value) {
 			if (!value) return true;
 
