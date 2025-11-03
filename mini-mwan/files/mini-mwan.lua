@@ -484,7 +484,7 @@ local function cleanup_unmanaged_routes(config)
 	end
 
 	-- Get all current default routes
-	local output = system_probe("ip route show | grep '^default'")
+	local output = system_probe("ip route show default'")
 	if not output or output == "" then
 		return
 	end
@@ -631,7 +631,7 @@ local function main()
 		local config = load_config()
 
 		-- Update log level filter after config reload
-		nixio.setlogmask("upto", config.log_level)
+		nixio.setlogmask(config.log_level)
 
 		if config.enabled then
 			if at_least_two_wans_configured(config) then
