@@ -306,16 +306,6 @@ To publish to the official OpenWrt feed:
    cp -r luci-app-mini-mwan/ /path/to/luci/applications/luci-app-mini-mwan/
    ```
 
-2. Remove development-only files:
-   ```bash
-   rm /path/to/packages/net/mini-mwan/Makefile.devcontainer
-   rm /path/to/luci/applications/luci-app-mini-mwan/Makefile.devcontainer
-   ```
-
-3. Ensure `Makefile` in each package uses proper includes:
-   - `mini-mwan/Makefile`: Standard OpenWrt package
-   - `luci-app-mini-mwan/Makefile`: Includes `../../luci.mk` for i18n support
-
 The `po/` directory contains translation templates and boilerplate files ready for Weblate integration.
 
 ## Troubleshooting

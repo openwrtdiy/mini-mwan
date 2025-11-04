@@ -46,6 +46,10 @@ feeds-register:
 shell:
 	docker-compose run --rm openwrt-sdk bash
 
+nginx:
+	mkdir -p nginx-run/{logs,run,client_body_temp,proxy_temp,fastcgi_temp,uwsgi_temp,scgi_temp}
+	nginx -c `pwd`/localhost-development-nginx.conf -p `pwd`
+
 # Open a shell in the build container
 check:
 	luacheck mini-mwan/files/mini-mwan.lua
