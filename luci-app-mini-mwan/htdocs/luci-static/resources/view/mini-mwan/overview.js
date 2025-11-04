@@ -3,15 +3,34 @@
 'require form';
 'require uci';
 'require ui';
-'require fs';
+'require network';
 
 return view.extend({
 	load: function() {
-		return uci.load('mini-mwan');
+		return Promise.all([
+			uci.load('mini-mwan'),
+			network.getDevices()
+		]);
 	},
 
-	render: function() {
+	render: function(data) {
+		var devices = data[1];
 		var m, s, o;
+
+		// Get all devices with IPv4 addresses
+		var availableDevices = [];
+		for (var i = 0; i < devices.length; i++) {
+			var dev = devices[i];
+			var ipaddrs = dev.getIPAddrs();
+
+			// Only include devices with IPv4 addresses
+			if (ipaddrs && ipaddrs.length > 0) {
+				availableDevices.push(dev.getName());
+			}
+		}
+		availableDevices.sort();
+
+		var sections = uci.sections('mini-mwan', 'interface');
 
 		m = new form.Map('mini-mwan', _('Mini Multi-WAN'),
 			_('Lightweight multi-WAN manager for WireGuard tunnels with failover and load-balancing.'));
@@ -71,10 +90,14 @@ return view.extend({
 		s.anonymous = true;
 		s.addremove = true;
 
-		o = s.option(form.Value, 'device', _('Device'),
-			_('Network interface device name (e.g., wg0, eth1)'));
+		o = s.option(form.ListValue, 'device', _('Device'),
+			_('Network interface with IPv4 address'));
 		o.rmempty = false;
-		o.placeholder = 'wg0';
+		// Add all devices with IPv4 to dropdown
+		for (var i = 0; i < availableDevices.length; i++) {
+			o.value(availableDevices[i], availableDevices[i]);
+		}
+		// Validate: prevent selecting a device already used by another interface
 		o.validate = function(section_id, value) {
 			if (!value) return true;
 
@@ -83,7 +106,7 @@ return view.extend({
 			for (var i = 0; i < sections.length; i++) {
 				if (sections[i]['.name'] !== section_id &&
 					sections[i].device === value) {
-					return _('Device "%s" is already configured').format(value);
+					return _('Device "%s" is already configured in another interface').format(value);
 				}
 			}
 			return true;
@@ -98,7 +121,10 @@ return view.extend({
 			var value = uci.get('mini-mwan', section_id, 'ping_target');
 			// If no value exists, return smart default
 			if (!value || value === '') {
-				return getSmartPingTarget(section_id);
+				var smartTarget = getSmartPingTarget(section_id);
+				// Set the value in UCI so it persists
+				uci.set('mini-mwan', section_id, 'ping_target', smartTarget);
+				return smartTarget;
 			}
 			return value;
 		};
