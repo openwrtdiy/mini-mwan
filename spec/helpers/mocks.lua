@@ -230,6 +230,82 @@ function M.mock_file_io()
 	}
 end
 
+-- Mock file reading (for sysfs stats, etc)
+function M.build_file_mock(file_contents)
+	--[[
+	Build file mock that returns different content based on file path
+
+	Usage:
+		local file_mock = M.build_file_mock({
+			["/sys/class/net/eth0/statistics/rx_bytes"] = "1234567",
+			["/sys/class/net/eth0/statistics/tx_bytes"] = "7654321",
+		})
+	]]
+	return function(path, mode)
+		if file_contents[path] then
+			return {
+				read = function(self, format)
+					return file_contents[path]
+				end,
+				close = function(self) end
+			}
+		end
+		-- Return nil for files not in the mock
+		return nil
+	end
+end
+
+-- Mock ubus connection
+function M.mock_ubus()
+	local registered_objects = {}
+	local last_reply = nil
+	local conn_instance
+
+	conn_instance = {
+		add = function(self, methods)
+			-- Store registered methods for verification
+			for object_name, object_methods in pairs(methods) do
+				registered_objects[object_name] = object_methods
+			end
+		end,
+		reply = function(self, req, data)
+			-- Store the last reply for verification
+			last_reply = data
+		end,
+		close = function(self)
+			-- No-op
+		end
+	}
+
+	return {
+		-- This is what deps.ubus_connect() will call
+		connect = function()
+			return conn_instance
+		end,
+		-- Test helper: call a registered ubus method and return what it replied
+		call_method = function(object, method, msg)
+			msg = msg or {}
+			if registered_objects[object] and registered_objects[object][method] then
+				local handler = registered_objects[object][method][1]
+				local mock_req = {}
+				-- Call the handler - it will call conn_instance:reply()
+				handler(mock_req, msg)
+				return last_reply
+			end
+			return nil
+		end,
+		-- Test helper: get what was registered
+		get_registered_objects = function()
+			return registered_objects
+		end,
+		-- Test helper: reset state
+		reset = function()
+			registered_objects = {}
+			last_reply = nil
+		end
+	}
+end
+
 -- Build complete dependency mock
 function M.build_deps(overrides)
 	--[[
@@ -240,8 +316,13 @@ function M.build_deps(overrides)
 			exec = custom_exec_function,
 			time = function() return 1234567890 end
 		})
+
+	Returns: deps table, ubus_mock object
 	]]
 	overrides = overrides or {}
+
+	-- Default ubus mock
+	local ubus_mock = overrides.ubus_mock or M.mock_ubus()
 
 	local deps = {
 		exec = overrides.exec or function(cmd)
@@ -256,10 +337,21 @@ function M.build_deps(overrides)
 				settings = { enabled = "1", mode = "failover", check_interval = "30" },
 				interfaces = {}
 			})
-		end
+		end,
+		ubus_connect = overrides.ubus_connect or function()
+			return ubus_mock.connect()
+		end,
+		uloop_init = overrides.uloop_init or function() end,
+		uloop_timer = overrides.uloop_timer or function(callback)
+			-- Return mock timer object
+			return {
+				set = function(self, ms) end
+			}
+		end,
+		uloop_run = overrides.uloop_run or function() end
 	}
 
-	return deps
+	return deps, ubus_mock
 end
 
 -- Assertion helpers

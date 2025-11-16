@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING**: Replaced file-based status communication with ubus
+  - Status now exposed via `ubus call mini-mwan status` instead of `/var/run/mini-mwan.status`
+  - Status format changed from INI to JSON
+  - LuCI frontend updated to use ubus RPC instead of file reads
+  - Daemon now uses uloop event loop instead of blocking sleep loop
+  - rpcd ACL updated to grant access to `mini-mwan.status` ubus method
+
+### Removed
+- `/var/run/mini-mwan.status` file no longer created
+- File-based status polling removed from LuCI
+
 ## [1.0.0] - 2025-10-23
 
 ### Added

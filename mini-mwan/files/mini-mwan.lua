@@ -7,11 +7,13 @@ Manages multi-WAN failover and load balancing
 
 -- Conditionally load OpenWRT-specific dependencies
 -- In test mode, these will be mocked via dependency injection
-local uci, nixio, json
+local uci, nixio, json, ubus, uloop
 if not os.getenv("MINI_MWAN_TEST_MODE") then
 	uci = require("uci")
 	nixio = require("nixio")
 	json = require("cjson")
+	ubus = require("ubus")
+	uloop = require("uloop")
 else
 	-- Test mode: use standard JSON if available, or it will be mocked
 	local ok, cjson = pcall(require, "cjson")
@@ -24,12 +26,24 @@ end
 
 -- Configuration
 local LOG_FILE = "/var/log/mini-mwan.log"
-local STATUS_FILE = "/var/run/mini-mwan.status"
 
 -- Persistent interface state (survives config reloads)
 local interface_state = {}
 
+-- Global state for ubus (shared across work cycles)
+local current_status = {
+	mode = "unknown",
+	timestamp = 0,
+	check_interval = 0,
+	interfaces = {}
+}
+
+-- Global ubus connection (used by ubus method handlers)
+local conn
+
 -- Dependencies table (defaults to real implementations)
+-- In production: uses real OpenWrt modules
+-- In test mode: must be completely replaced via set_dependencies()
 local deps = {
 	exec = function(cmd)
 		local handle = io.popen(cmd)
@@ -39,20 +53,24 @@ local deps = {
 		return output
 	end,
 	sleep = function(seconds)
-		if nixio then
-			nixio.nanosleep(seconds)
-		else
-			error("NIXIO not available - must be mocked in test mode")
-		end
+		nixio.nanosleep(seconds)
 	end,
 	time = os.time,
 	open_file = io.open,
 	uci_cursor = function()
-		if uci then
-			return uci.cursor()
-		else
-			error("UCI not available - must be mocked in test mode")
-		end
+		return uci.cursor()
+	end,
+	ubus_connect = function()
+		return ubus.connect()
+	end,
+	uloop_init = function()
+		return uloop.init()
+	end,
+	uloop_timer = function(callback)
+		return uloop.timer(callback)
+	end,
+	uloop_run = function()
+		return uloop.run()
 	end
 }
 
@@ -439,39 +457,36 @@ end
 
 -- Write view (presentation for LuCI/status display)
 -- Merges config + state into a single view file (write and forget)
-local function write_view(config, state)
-	local f = deps.open_file(STATUS_FILE, "w")
-	if f then
-		-- Config fields
-		f:write(string.format("mode=%s\n", config.mode))
-		f:write(string.format("timestamp=%d\n", deps.time()))
-		f:write(string.format("check_interval=%d\n", config.check_interval))
+-- Update global status for ubus (replaces write_view)
+local function update_status(config, state)
+	-- Update global status object that will be served via ubus
+	current_status.mode = config.mode
+	current_status.timestamp = deps.time()
+	current_status.check_interval = config.check_interval
 
-		-- Merge each interface config + state
-		for i, iface_cfg in ipairs(config.interfaces) do
-			local iface_state = state.interfaces[i]
+	-- Build interfaces array
+	current_status.interfaces = {}
+	for i, iface_cfg in ipairs(config.interfaces) do
+		local iface_state = state.interfaces[i]
 
-			-- Get current network statistics
-			local rx_bytes, tx_bytes = get_interface_stats(iface_cfg.device)
+		-- Get current network statistics
+		local rx_bytes, tx_bytes = get_interface_stats(iface_cfg.device)
 
-			f:write(string.format("\n[%s]\n", iface_cfg.device))
-			-- Config fields
-			f:write(string.format("device=%s\n", iface_cfg.device or ""))
-			f:write(string.format("ping_target=%s\n", iface_cfg.ping_target or ""))
-			-- State fields (precise data for LuCI to interpret)
-			f:write(string.format("does_exist=%s\n", iface_state.does_exist and "1" or "0"))
-			f:write(string.format("is_up=%s\n", iface_state.is_up and "1" or "0"))
-			f:write(string.format("degraded=%s\n", iface_state.degraded))
-			f:write(string.format("degraded_reason=%s\n", iface_state.degraded_reason or ""))
-			f:write(string.format("status_since=%s\n", iface_state.status_since or ""))
-			f:write(string.format("last_check=%s\n", iface_state.last_check or ""))
-			f:write(string.format("latency=%.2f\n", iface_state.latency))
-			f:write(string.format("gateway=%s\n", iface_state.gateway or ""))
-			-- Network stats (runtime)
-			f:write(string.format("rx_bytes=%s\n", rx_bytes))
-			f:write(string.format("tx_bytes=%s\n", tx_bytes))
-		end
-		f:close()
+		-- Create interface status object
+		table.insert(current_status.interfaces, {
+			device = iface_cfg.device or "",
+			ping_target = iface_cfg.ping_target or "",
+			does_exist = iface_state.does_exist,
+			is_up = iface_state.is_up,
+			degraded = iface_state.degraded,
+			degraded_reason = iface_state.degraded_reason or "",
+			status_since = iface_state.status_since or "",
+			last_check = iface_state.last_check or "",
+			latency = iface_state.latency,
+			gateway = iface_state.gateway or "",
+			rx_bytes = tonumber(rx_bytes) or 0,
+			tx_bytes = tonumber(tx_bytes) or 0
+		})
 	end
 end
 
@@ -617,39 +632,102 @@ local function work(config)
 		set_route_multiuplink(classified.usable)
 	end
 
-	-- Write view (merges config + state for presentation)
-	write_view(config, state)
+	-- Update status (merges config + state for ubus)
+	update_status(config, state)
 end
 
--- Main daemon loop
+-- Work timer callback (replaces while loop)
+local work_timer
+local function work_cycle()
+	-- Load immutable config from UCI
+	local config = load_config()
+
+	-- Update log level filter after config reload
+	nixio.setlogmask(config.log_level)
+
+	if config.enabled then
+		if at_least_two_wans_configured(config) then
+			work(config)
+		else
+			log("Both WAN interfaces must be configured. Refusing to work!", "err")  -- err
+		end
+	end
+
+	-- Reschedule timer with current check_interval
+	if work_timer then
+		work_timer:set(config.check_interval * 1000)  -- milliseconds
+	end
+end
+
+-- ubus method handlers
+local ubus_methods = {
+	["mini-mwan"] = {
+		status = {
+			function(req, msg)
+				-- Return current status as JSON
+				conn:reply(req, current_status)
+			end,
+			{}  -- No parameters required
+		}
+	}
+}
+
+-- Register ubus methods
+local function register_ubus()
+	-- Connect to ubus
+	conn = deps.ubus_connect()
+	if not conn then
+		log("Failed to connect to ubus", "err")
+		return false
+	end
+
+	-- Register ubus methods
+	conn:add(ubus_methods)
+	log("Registered ubus object: mini-mwan", "notice")
+	return true
+end
+
+-- Run work cycle in uloop event loop
+local function run_event_loop()
+	-- Initialize uloop event loop
+	deps.uloop_init()
+
+	-- Create work timer
+	work_timer = deps.uloop_timer(work_cycle)
+
+	-- Start first work cycle immediately
+	work_timer:set(100)  -- 100ms delay for initial run
+
+	-- Run event loop
+	deps.uloop_run()
+
+	-- Cleanup on exit
+	if conn then
+		conn:close()
+	end
+end
+
+-- Main daemon entry point
 local function main()
 	-- Initialize syslog
 	nixio.openlog("mini-mwan")
 
 	log("Mini-MWAN daemon starting", "notice")  -- notice
 
-	while true do
-		-- Load immutable config from UCI
-		local config = load_config()
-
-		-- Update log level filter after config reload
-		nixio.setlogmask(config.log_level)
-
-		if config.enabled then
-			if at_least_two_wans_configured(config) then
-				work(config)
-			else
-				log("Both WAN interfaces must be configured. Refusing to work!", "err")  -- err
-			end
-		end
-
-		deps.sleep(config.check_interval)
+	-- Register ubus interface
+	if not register_ubus() then
+		return
 	end
+
+	-- Run event loop
+	run_event_loop()
 end
 
 -- Export functions for testing
 if os.getenv("MINI_MWAN_TEST_MODE") then
 	return {
+		-- in Java, we call it package-private
+		-- but here in lua, we export methods for testing
 		set_dependencies = set_dependencies,
 		probe_all_gateways = probe_all_gateways,
 		detect_point_to_point = detect_point_to_point,
@@ -664,7 +742,8 @@ if os.getenv("MINI_MWAN_TEST_MODE") then
 		update_interface_status = update_interface_status,
 		classify_interfaces = classify_interfaces,
 		deprioritize_unusable_interfaces = deprioritize_unusable_interfaces,
-		work = work
+		work = work,
+		register_ubus = register_ubus
 	}
 else
 	-- Normal operation - run daemon

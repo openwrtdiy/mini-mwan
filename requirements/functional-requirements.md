@@ -227,18 +227,18 @@
 - State SHALL NOT persist across daemon restarts
 - Timestamp fields MUST use Unix epoch time
 
-### FR-4.2 Status File Output
+### FR-4.2 Status via ubus
 **ID**: FR-4.2
 **Priority**: High
-**Description**: The system SHALL write current status to a file for external consumption.
+**Description**: The system SHALL expose current status via ubus for external consumption.
 
 **Acceptance Criteria**:
-- Status file MUST be at `/var/run/mini-mwan.status`
-- Format SHALL be INI-like key=value pairs
-- File MUST include global section with mode, timestamp, check_interval
-- Each interface MUST have section with all status fields
-- File SHALL be updated after each monitoring cycle
-- File MUST include network statistics (rx_bytes, tx_bytes)
+- Status MUST be accessible via ubus object `mini-mwan` method `status`
+- Format SHALL be JSON
+- Response MUST include global fields: mode, timestamp, check_interval
+- Response MUST include interfaces array with all status fields per interface
+- Status SHALL be updated after each monitoring cycle
+- Status MUST include network statistics (rx_bytes, tx_bytes)
 
 ---
 

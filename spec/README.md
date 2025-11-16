@@ -40,15 +40,15 @@ Runtime state discovered and measured by the daemon:
 
 State is **ephemeral** - it's rebuilt on every daemon loop iteration.
 
-### View (Write and Forget - for LuCI)
-The `/var/run/mini-mwan.status` file is a **presentation layer** that merges config + state for display in LuCI. Mini-mwan writes it and forgets about it - the file format is for the Presenter (LuCI) to consume.
+### Status (Published via ubus - for LuCI)
+Status information is a **presentation layer** that merges config + state for display in LuCI. Mini-mwan publishes it via ubus (`mini-mwan.status` method) - the JSON format is consumed by LuCI and other monitoring tools.
 
 ### Key Functions
 - `load_config()` → Returns immutable config from UCI
 - `probe_state(config)` → Discovers/collects mutable state based on config
 - `set_routes_for_failover(usable_ifaces)` → Sets routes in main table with configured metrics
 - `set_route_multiuplink(usable_ifaces)` → Sets multipath route in main table
-- `write_view(config, state)` → Merges both into status file for LuCI
+- `update_status(config, state)` → Merges both into global status object served via ubus
 
 ### Routing Table Scope
 

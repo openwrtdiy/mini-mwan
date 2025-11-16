@@ -58,56 +58,62 @@ config interface '<name>'
 
 ---
 
-## DR-2: Status File Format
+## DR-2: Status Communication
 
-### DR-2.1 Status File Structure
+### DR-2.1 Status via ubus
 **ID**: DR-2.1
 **Priority**: High
-**Description**: Status output SHALL be written to `/var/run/mini-mwan.status` in INI format.
+**Description**: Status information SHALL be exposed via ubus object `mini-mwan` with method `status`.
 
-**File Structure**:
-```ini
-mode=<failover|multiuplink>
-timestamp=<unix_epoch>
-check_interval=<seconds>
+**ubus Method**: `mini-mwan.status`
 
-[<interface_name>]
-device=<interface_device>
-status=<up|down|interface_down|disabled>
-status_since=<unix_epoch>
-last_check=<unix_epoch>
-latency=<milliseconds>
-gateway=<ip_address>
-ping_target=<ip_address>
-degraded=<0|1>
-degraded_reason=<reason_string>
-point_to_point=<0|1>
-rx_bytes=<bytes>
-tx_bytes=<bytes>
+**JSON Response Structure**:
+```json
+{
+  "mode": "failover|multiuplink",
+  "timestamp": 1234567890,
+  "check_interval": 30,
+  "interfaces": [
+    {
+      "device": "eth0",
+      "ping_target": "8.8.8.8",
+      "does_exist": true,
+      "is_up": true,
+      "degraded": 0,
+      "degraded_reason": "",
+      "status_since": "1234567890",
+      "last_check": "1234567890",
+      "latency": 12.5,
+      "gateway": "192.168.1.1",
+      "rx_bytes": 123456,
+      "tx_bytes": 654321
+    }
+  ]
+}
 ```
 
 **Field Specifications**:
 
-#### Global Section
+#### Global Fields
 | Field | Type | Description |
 |-------|------|-------------|
-| mode | string | Current operation mode |
+| mode | string | Current operation mode (failover or multiuplink) |
 | timestamp | integer | Unix epoch of last status update |
 | check_interval | integer | Current check interval in seconds |
 
-#### Interface Sections
+#### Interface Fields
 | Field | Type | Description |
 |-------|------|-------------|
 | device | string | Physical interface name |
-| status | string | Current status: up, down, interface_down, disabled |
-| status_since | integer | Unix epoch of last status change |
-| last_check | integer | Unix epoch of last health check |
-| latency | float | Average ping latency in milliseconds (0 if down) |
-| gateway | string | Gateway IP address (empty for P2P or if unavailable) |
 | ping_target | string | IP address used for connectivity checks |
+| does_exist | boolean | Whether the interface exists in the system |
+| is_up | boolean | Whether the interface is up |
 | degraded | integer | Degradation flag: 0 (healthy) or 1 (degraded) |
 | degraded_reason | string | Reason for degradation (empty if not degraded) |
-| point_to_point | integer | P2P interface flag: 0 (regular) or 1 (P2P) |
+| status_since | string | Unix epoch of last status change |
+| last_check | string | Unix epoch of last health check |
+| latency | float | Average ping latency in milliseconds (0 if down) |
+| gateway | string | Gateway IP address (empty if unavailable) |
 | rx_bytes | integer | Received bytes counter |
 | tx_bytes | integer | Transmitted bytes counter |
 
@@ -118,11 +124,11 @@ tx_bytes=<bytes>
 | `no_gateway` | Regular interface missing gateway (DHCP incomplete) |
 | `ipv6_detected` | Interface has IPv6 address (not supported) |
 
-**File Characteristics**:
-- File MUST be updated after each monitoring cycle
-- File MUST be world-readable (no sensitive data)
-- File MUST be atomic write (write to temp, then rename)
-- Missing file indicates daemon not running
+**Status Characteristics**:
+- Status MUST be updated after each monitoring cycle
+- Status MUST be accessible via ubus for LuCI and other clients
+- Status contains no sensitive data
+- Unavailable ubus object indicates daemon not running
 
 ---
 
@@ -339,7 +345,6 @@ rtt min/avg/max/mdev = 11.2/12.1/13.5/0.9 ms
 | `/usr/bin/mini-mwan.lua` | Daemon executable | No | Yes (flash) |
 | `/etc/init.d/mini-mwan` | Init script | No | Yes (flash) |
 | `/var/log/mini-mwan.log` | Application log | Yes | No (tmpfs) |
-| `/var/run/mini-mwan.status` | Status file | Yes | No (tmpfs) |
 | `/var/run/mini-mwan.pid` | PID file (managed by procd) | Yes | No (tmpfs) |
 | `/sys/class/net/<dev>/statistics/` | Network stats | No | No (sysfs) |
 
@@ -354,7 +359,6 @@ rtt min/avg/max/mdev = 11.2/12.1/13.5/0.9 ms
 | `/usr/bin/mini-mwan.lua` | root | root | 0755 | Executable by root |
 | `/etc/init.d/mini-mwan` | root | root | 0755 | Executable init script |
 | `/var/log/mini-mwan.log` | root | root | 0644 | Readable for troubleshooting |
-| `/var/run/mini-mwan.status` | root | root | 0644 | Readable by web UI and monitoring |
 
 ---
 

@@ -1,84 +1,53 @@
 'use strict';
 'require view';
-'require fs';
+'require rpc';
 'require ui';
 'require poll';
-var version = 'test2';
+var version = 'test3';
+
+var callMiniMwanStatus = rpc.declare({
+	object: 'mini-mwan',
+	method: 'status',
+	expect: { }
+});
 
 return view.extend({
 	load: function() {
-		return fs.read('/var/run/mini-mwan.status').catch(function(err) {
-			return '';
+		return callMiniMwanStatus().catch(function(err) {
+			return null;
 		});
 	},
 
 	parseStatus: function(data) {
 		if (!data) return null;
 
+		// Data is already JSON from ubus, just add name field to interfaces
 		var status = {
-			mode: '',
-			timestamp: 0,
-			check_interval: 30,
+			mode: data.mode || '',
+			timestamp: data.timestamp || 0,
+			check_interval: data.check_interval || 30,
 			interfaces: []
 		};
 
-		var current_iface = null;
-		var lines = data.trim().split('\n');
-
-		for (var i = 0; i < lines.length; i++) {
-			var line = lines[i].trim();
-			if (!line) continue;
-
-			// Check for interface section (section name is device name)
-			var iface_match = line.match(/^\[(.+)\]$/);
-			if (iface_match) {
-				current_iface = {
-					name: iface_match[1],  // Section name is the device name
-					does_exist: false,
-					is_up: false,
-					degraded: 0,
-					degraded_reason: '',
-					status_since: '',
-					last_check: '',
-					latency: 0,
-					gateway: '',
-					ping_target: '',
-					rx_bytes: 0,
-					tx_bytes: 0
-				};
-				status.interfaces.push(current_iface);
-				continue;
-			}
-
-			// Parse key=value pairs
-			var kv = line.split('=');
-			if (kv.length !== 2) continue;
-
-			var key = kv[0].trim();
-			var value = kv[1].trim();
-
-			if (current_iface) {
-				// Interface property - parse specific types
-				if (key === 'does_exist' || key === 'is_up') {
-					current_iface[key] = value === '1';
-				} else if (key === 'degraded') {
-					current_iface[key] = parseInt(value);
-				} else if (key === 'latency') {
-					current_iface[key] = parseFloat(value);
-				} else if (key === 'rx_bytes' || key === 'tx_bytes') {
-					current_iface[key] = parseInt(value);
-				} else {
-					current_iface[key] = value;
-				}
-			} else {
-				// Global property
-				if (key === 'timestamp') {
-					status.timestamp = parseInt(value);
-				} else if (key === 'check_interval') {
-					status.check_interval = parseInt(value);
-				} else {
-					status[key] = value;
-				}
+		// Map interfaces and add 'name' field (device becomes name for UI)
+		if (data.interfaces) {
+			for (var i = 0; i < data.interfaces.length; i++) {
+				var iface = data.interfaces[i];
+				status.interfaces.push({
+					name: iface.device,
+					device: iface.device,
+					does_exist: iface.does_exist || false,
+					is_up: iface.is_up || false,
+					degraded: iface.degraded || 0,
+					degraded_reason: iface.degraded_reason || '',
+					status_since: iface.status_since || '',
+					last_check: iface.last_check || '',
+					latency: iface.latency || 0,
+					gateway: iface.gateway || '',
+					ping_target: iface.ping_target || '',
+					rx_bytes: iface.rx_bytes || 0,
+					tx_bytes: iface.tx_bytes || 0
+				});
 			}
 		}
 
@@ -253,7 +222,7 @@ return view.extend({
 	addFooter: function() {
 		// Set up auto-refresh polling
 		poll.add(L.bind(function() {
-			return fs.read('/var/run/mini-mwan.status').then(L.bind(function(data) {
+			return callMiniMwanStatus().then(L.bind(function(data) {
 				var container = document.querySelector('.cbi-map');
 				if (container) {
 					var newContent = this.render(data);

@@ -173,8 +173,8 @@ Status updates automatically every 5 seconds.
 ### Via Command Line
 
 ```bash
-# View status file
-cat /var/run/mini-mwan.status
+# View status via ubus
+ubus call mini-mwan status
 
 # View logs
 cat /var/log/mini-mwan.log
@@ -341,7 +341,7 @@ opkg list-installed | grep -E 'lua|uci|nixio|cjson'
 - Verify interface name matches OpenWrt interface (not device)
 - Check that ping target is reachable
 - Ensure interface is enabled in both OpenWrt and Mini-MWAN config
-- Check `/var/run/mini-mwan.status` for error messages
+- Check status via `ubus call mini-mwan status` for error messages
 
 ### Routing not working as expected
 ```bash
@@ -352,7 +352,7 @@ ip route get 8.8.8.8
 ip route show | grep default
 
 # Check interface status
-cat /var/run/mini-mwan.status
+ubus call mini-mwan status
 ```
 
 ### No status displayed in LuCI

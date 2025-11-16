@@ -3,8 +3,10 @@
 		"description": "Grant access to Mini-MWAN configuration",
 		"read": {
 			"uci": [ "mini-mwan" ],
+			"ubus": {
+				"mini-mwan": [ "status" ]
+			},
 			"file": {
-				"/var/run/mini-mwan.status": [ "read" ],
 				"/var/log/mini-mwan.log": [ "read" ]
 			}
 		},
